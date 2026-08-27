@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.mzstatic.com" },
       { protocol: "https", hostname: "is1-ssl.mzstatic.com" },
       { protocol: "https", hostname: "a1.mzstatic.com" },
+      { protocol: "https", hostname: "*.jamendo.com" },
+      { protocol: "https", hostname: "usercontent.jamendo.com" },
+      { protocol: "https", hostname: "imgjam.jamendo.com" },
     ],
   },
   async headers() {

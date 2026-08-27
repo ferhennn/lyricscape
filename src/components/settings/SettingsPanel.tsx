@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { FilmGrain } from "@/components/ui/FilmGrain";
 import { useSettings } from "@/stores/settings";
 import { useAppleMusic } from "@/hooks/useAppleMusic";
+import { useMusicSources } from "@/hooks/useMusicSources";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import type { Settings } from "@/types";
@@ -73,6 +74,7 @@ export function SettingsPanel() {
   const s = useSettings();
   const set = s.set;
   const { status, available, connect, disconnect, connecting } = useAppleMusic();
+  const sources = useMusicSources();
 
   const seg = <K extends keyof Settings>(key: K, opts: { value: Settings[K]; label: string }[]) => (
     <Segment
@@ -98,12 +100,10 @@ export function SettingsPanel() {
         <h1 className="text-display text-[11vw] font-semibold leading-none sm:text-6xl">Settings</h1>
 
         <section className="mt-16">
-          <h2 className="label mb-2 tracking-[0.3em]! text-ink">Apple Music</h2>
-          <Row label="Connection">
+          <h2 className="label mb-2 tracking-[0.3em]! text-ink">Music sources</h2>
+          <Row label="Apple Music">
             {available === false ? (
-              <span className="meta text-muted">
-                Not configured on this deployment — running in demo mode.
-              </span>
+              <span className="meta text-muted">Not configured on this deployment.</span>
             ) : status.authorized ? (
               <Button variant="line" onClick={disconnect}>
                 Disconnect
@@ -113,6 +113,20 @@ export function SettingsPanel() {
                 {connecting ? "Connecting…" : "Connect"}
               </Button>
             )}
+          </Row>
+          <Row label="Jamendo">
+            <span className="meta text-muted">
+              {sources.jamendo === null
+                ? "Checking…"
+                : sources.jamendo
+                  ? "Connected — search is live"
+                  : "Not configured (set JAMENDO_CLIENT_ID)"}
+            </span>
+          </Row>
+          <Row label="Local files">
+            <span className="meta text-muted">
+              Always available — open one from search or the home screen.
+            </span>
           </Row>
         </section>
 

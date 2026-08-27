@@ -7,24 +7,50 @@ import { motion } from "motion/react";
 import { ParticleCanvas } from "@/components/ui/ParticleCanvas";
 import { FilmGrain } from "@/components/ui/FilmGrain";
 import { Button } from "@/components/ui/Button";
+import { LocalFileButton } from "@/components/music/LocalFileButton";
 import { useAppleMusic } from "@/hooks/useAppleMusic";
+import { useMusicSources } from "@/hooks/useMusicSources";
+import { useSearch } from "@/stores/search";
 import { DEMO_SONG_ID } from "@/data/demo";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
 export function Landing() {
   const router = useRouter();
-  const { available, connecting, connect, status } = useAppleMusic();
+  const { connecting, connect, status } = useAppleMusic();
+  const { apple, jamendo } = useMusicSources();
+  const openSearch = useSearch((s) => s.setOpen);
   const [note, setNote] = useState<string | null>(null);
 
-  async function onConnect() {
-    if (available === false) {
-      setNote("Apple Music isn't configured on this deployment. Try the demo.");
-      return;
+  async function onPrimary() {
+    if (status.authorized) return router.push("/library");
+    if (apple) {
+      await connect();
+      return router.push("/library");
     }
-    await connect();
-    router.push("/library");
+    if (jamendo) return openSearch(true);
+    setNote("No streaming source configured — playing the demo, or open a local file.");
+    router.push(`/experience/${DEMO_SONG_ID}`);
   }
+
+  const primaryLabel = connecting
+    ? "Connecting…"
+    : status.authorized
+      ? "Enter Library"
+      : apple
+        ? "Connect Apple Music"
+        : jamendo
+          ? "Browse Music"
+          : "Try Demo";
+
+  const sourceLabel =
+    apple === null && jamendo === null
+      ? "Checking sources…"
+      : apple
+        ? "Apple Music ready"
+        : jamendo
+          ? "Jamendo ready"
+          : "Demo mode";
 
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-void">
@@ -39,7 +65,6 @@ export function Landing() {
       <ParticleCanvas className="absolute inset-0 h-full w-full opacity-70" intensity={0.35} />
       <FilmGrain />
 
-      {/* Top chrome — deliberately tiny */}
       <motion.header
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -82,17 +107,21 @@ export function Landing() {
           transition={{ delay: 1.5, duration: 1, ease }}
           className="mt-16 flex flex-col items-center gap-4 sm:flex-row"
         >
-          <Button
-            variant="primary"
-            onClick={onConnect}
-            disabled={connecting}
-            data-cursor="interactive"
-          >
-            {connecting ? "Connecting…" : status.authorized ? "Enter Library" : "Connect Apple Music"}
+          <Button variant="primary" onClick={onPrimary} disabled={connecting} data-cursor="interactive">
+            {primaryLabel}
           </Button>
           <Button variant="line" onClick={() => router.push(`/experience/${DEMO_SONG_ID}`)}>
             Try Demo
           </Button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.9, duration: 1 }}
+          className="mt-6"
+        >
+          <LocalFileButton label="Or open a local audio file →" />
         </motion.div>
 
         {note && (
@@ -112,13 +141,7 @@ export function Landing() {
         transition={{ delay: 2, duration: 1 }}
         className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10"
       >
-        <span className="label">
-          {available === null
-            ? "Checking sources…"
-            : available
-              ? "Apple Music ready"
-              : "Demo mode"}
-        </span>
+        <span className="label">{sourceLabel}</span>
         <span className="label hidden sm:block">Press / to search</span>
       </motion.footer>
     </main>

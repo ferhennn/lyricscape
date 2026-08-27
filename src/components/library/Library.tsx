@@ -67,6 +67,20 @@ export function Library() {
   const openSearch = useSearch((s) => s.setOpen);
   const { status } = useAppleMusic();
   const [librarySongs, setLibrarySongs] = useState<Song[]>([]);
+  const [trending, setTrending] = useState<Song[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/jamendo/search?limit=12")
+      .then((r) => (r.ok ? r.json() : { songs: [] }))
+      .then((b: { songs?: Song[] }) => {
+        if (!cancelled) setTrending(b.songs ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!status.authorized) return;
@@ -137,6 +151,7 @@ export function Library() {
       <Shelf title="Featured demo" songs={[DEMO_CONFIG.song]} />
       <Shelf title="Recently played" songs={recent} />
       <Shelf title="From your library" songs={librarySongs} />
+      <Shelf title="Trending on Jamendo" songs={trending} />
     </main>
   );
 }

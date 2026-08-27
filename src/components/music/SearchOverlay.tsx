@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSearch } from "@/stores/search";
 import { useHistory } from "@/stores/history";
 import { SongArtwork } from "./SongArtwork";
+import { LocalFileButton } from "./LocalFileButton";
 import { formatTime } from "@/lib/utils";
 import type { Song } from "@/types";
 
@@ -74,7 +75,13 @@ export function SearchOverlay() {
             <div className="mb-4 flex items-baseline justify-between">
               <span className="label">Search music</span>
               <span className="label">
-                {source === "demo" ? "Demo catalog" : source === "apple-music" ? "Apple Music" : ""}
+                {source === "demo"
+                  ? "Demo catalog"
+                  : source === "apple-music"
+                    ? "Apple Music"
+                    : source === "jamendo"
+                      ? "Jamendo"
+                      : ""}
               </span>
             </div>
 
@@ -138,6 +145,11 @@ export function SearchOverlay() {
                   </motion.li>
                 ))}
               </ul>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
+              <LocalFileButton label="Or open a local file →" onDone={() => setOpen(false)} />
+              <span className="label">Enter to play the first result</span>
             </div>
           </motion.div>
         </motion.div>

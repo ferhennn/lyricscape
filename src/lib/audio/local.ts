@@ -1,20 +1,26 @@
-// LocalAudioProvider — plays a user-supplied file or a bundled royalty-free track
-// through an <audio> element. For development, offline use, and low-power devices.
+// LocalAudioProvider — plays a user-supplied file, a bundled royalty-free track,
+// or a remote stream URL (e.g. Jamendo) through an <audio> element. Used for
+// development, offline use, low-power devices, and the Jamendo source.
 
-import type { PlaybackSnapshot, Song } from "@/types";
+import type { AudioProviderKind, PlaybackSnapshot, Song } from "@/types";
 import { idleSnapshot, type AudioProvider, type PlaybackListener } from "./types";
 
 export class LocalAudioProvider implements AudioProvider {
-  readonly kind = "local" as const;
+  readonly kind: AudioProviderKind;
   private el: HTMLAudioElement;
   private listeners = new Set<PlaybackListener>();
   private snap: PlaybackSnapshot = { ...idleSnapshot };
   private objectUrl: string | null = null;
 
-  constructor(private srcResolver?: (song: Song) => string | File | undefined) {
+  constructor(
+    private srcResolver?: (song: Song) => string | File | undefined,
+    kind: AudioProviderKind = "local",
+  ) {
+    this.kind = kind;
     this.el = typeof Audio !== "undefined" ? new Audio() : ({} as HTMLAudioElement);
     this.el.preload = "auto";
-    this.el.crossOrigin = "anonymous";
+    // No crossOrigin: we never read the element into Web Audio, and setting it
+    // breaks playback for hosts that don't send CORS headers.
     this.bind();
   }
 

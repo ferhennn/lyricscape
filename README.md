@@ -18,6 +18,20 @@ npm run dev
 
 The app runs fully without any credentials in **demo mode** (see below).
 
+## Music sources
+
+LYRICSCAPE plays audio from whichever of these is available, in priority order:
+
+| Source | Setup | Playback |
+| --- | --- | --- |
+| **Apple Music** (MusicKit) | paid Apple Developer account → `.env.local` (below) | full catalog, DRM stream |
+| **Jamendo** | free client ID at [devportal.jamendo.com](https://devportal.jamendo.com) → `JAMENDO_CLIENT_ID` in `.env.local` | ~600k Creative-Commons tracks, full-length legal streams |
+| **Local files** | none — always on | your own audio, picked from search or the home screen |
+| **Demo** | none — always on | original *Afterlight*, generative Web Audio score |
+
+Only the Jamendo **Client ID** is needed (it is public — sent with every API
+request). Do **not** add the Client Secret; this app does not use OAuth.
+
 ### Commands
 
 | Command | What it does |

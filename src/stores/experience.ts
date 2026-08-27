@@ -13,6 +13,8 @@ import { idleSnapshot } from "@/lib/audio/types";
 import { useSettings } from "@/stores/settings";
 import { SyntheticAudioProvider } from "@/lib/audio/synthetic";
 import { LocalAudioProvider } from "@/lib/audio/local";
+import { takeLocalFile } from "@/lib/audio/local-file";
+import { jamendoId, isJamendoId } from "@/lib/jamendo/id";
 import { appleMusic } from "@/lib/apple-music/service";
 import { parseLrc, buildLyrics } from "@/lib/lyrics/lrc";
 import { LyricsEngine } from "@/lib/lyrics/engine";
@@ -104,8 +106,11 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     });
 
     try {
-      const isDemo =
-        songId === DEMO_SONG_ID || songId === "demo" || appleMusic.getStatus().configured === false;
+      const staged = takeLocalFile(songId);
+      const localFile = opts?.localFile ?? staged?.file;
+      const isDemo = songId === DEMO_SONG_ID || songId === "demo";
+      const isJamendo = isJamendoId(songId);
+      const appleConfigured = appleMusic.getStatus().configured || appleMusic.getStatus().authorized;
 
       let song: Song;
       let sceneMeta: SceneMeta;
@@ -113,22 +118,37 @@ export const useExperience = create<ExperienceState>((set, get) => ({
       let provider: AudioProvider;
       let palette: AccentPalette;
 
-      if (opts?.localFile) {
-        song = {
+      if (localFile) {
+        song = staged?.song ?? {
           id: songId,
-          title: opts.localFile.name.replace(/\.[^.]+$/, ""),
+          title: localFile.name.replace(/\.[^.]+$/, ""),
           artistName: "Local file",
           albumName: "",
           durationMs: 0,
           provider: "local",
         };
-        provider = new LocalAudioProvider(() => opts.localFile);
+        provider = new LocalAudioProvider(() => localFile);
         await provider.load(song);
         const dur = provider.getSnapshot().duration || 210;
         sceneMeta = autoSceneMeta(dur);
         lyrics = { lines: [], synced: false, wordLevel: false, source: "none" };
         palette = FALLBACK_PALETTE;
-      } else if (isDemo) {
+      } else if (isJamendo) {
+        set({ loadingLabel: "LOADING TRACK" });
+        const res = await fetch(`/api/jamendo/track/${jamendoId(songId)}`);
+        if (!res.ok) throw new Error("SONG_UNAVAILABLE");
+        song = ((await res.json()) as { song: Song }).song;
+        provider = new LocalAudioProvider(() => song.previewUrl, "jamendo");
+        await provider.load(song);
+
+        set({ loadingLabel: "RETRIEVING LYRICS" });
+        lyrics = await fetchRemoteLyrics(song);
+        const dur = provider.getSnapshot().duration || song.durationMs / 1000 || 210;
+        sceneMeta = autoSceneMeta(dur, lyrics.lines);
+        palette = song.artworkUrl
+          ? await extractPalette(song.artworkUrl).catch(() => FALLBACK_PALETTE)
+          : FALLBACK_PALETTE;
+      } else if (isDemo || !appleConfigured) {
         set({ loadingLabel: "LOADING WORLD" });
         song = DEMO_CONFIG.song;
         sceneMeta = DEMO_CONFIG.sceneMeta;
