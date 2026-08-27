@@ -31,7 +31,7 @@ export interface Song {
   demoId?: string;
 }
 
-export type AudioProviderKind = "apple-music" | "jamendo" | "local" | "synthetic";
+export type AudioProviderKind = "apple-music" | "jamendo" | "local";
 
 export interface SearchResult {
   songs: Song[];

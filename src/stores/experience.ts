@@ -11,7 +11,6 @@ import type {
 import type { AudioProvider } from "@/lib/audio/types";
 import { idleSnapshot } from "@/lib/audio/types";
 import { useSettings } from "@/stores/settings";
-import { SyntheticAudioProvider } from "@/lib/audio/synthetic";
 import { LocalAudioProvider } from "@/lib/audio/local";
 import { takeLocalFile } from "@/lib/audio/local-file";
 import { jamendoId, isJamendoId } from "@/lib/jamendo/id";
@@ -170,7 +169,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         song = DEMO_CONFIG.song;
         sceneMeta = DEMO_CONFIG.sceneMeta;
         palette = DEMO_CONFIG.sceneMeta.palette ?? FALLBACK_PALETTE;
-        provider = new SyntheticAudioProvider();
+        provider = new LocalAudioProvider(() => DEMO_CONFIG.song.previewUrl);
         await provider.load(song);
         const lrcText = await fetch(DEMO_CONFIG.lrc).then((r) => r.text());
         const parsed = parseLrc(lrcText);

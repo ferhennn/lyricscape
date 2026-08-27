@@ -20,6 +20,7 @@ import { ParticleCanvas } from "@/components/ui/ParticleCanvas";
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { detectWebGL } from "@/lib/visuals/quality";
 import { bindPointer } from "@/lib/experience/pointer";
+import { DEMO_MUSIC_CREDIT } from "@/data/demo";
 
 const ExperienceCanvas = dynamic(() => import("@/components/three/ExperienceCanvas"), {
   ssr: false,
@@ -209,6 +210,12 @@ export function ExperienceRoot({ songId }: { songId: string }) {
       )}
 
       {visualMode === "lyric-only" && status !== "ended" && <MinimalExit />}
+
+      {song?.demoId && status !== "ended" && (
+        <p className="pointer-events-none absolute inset-x-0 bottom-1 z-20 text-center text-[10px] tracking-wide text-muted/60">
+          Music: {DEMO_MUSIC_CREDIT}
+        </p>
+      )}
     </div>
   );
 }

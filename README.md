@@ -48,17 +48,17 @@ request). Do **not** add the Client Secret; this app does not use OAuth.
 ## Demo mode
 
 If Apple Music is not configured, LYRICSCAPE serves a complete built-in
-experience with **no copyrighted material**:
+experience that anyone can run and ship:
 
-- **Song:** _Afterlight_ by _LYRICSCAPE_ — original lyrics written for the demo
-  (`public/demo/afterlight.lrc`).
-- **Audio:** an original ambient score **synthesized live in the browser** with
-  the Web Audio API (`src/lib/audio/synthetic.ts`). There is no audio file — the
-  chord progression, filter movement, reverb and noise bed are generated from a
-  recipe, which gives sample-accurate lyric timing.
+- **Lyrics & direction:** _Afterlight_ — original lyrics written for the demo
+  (`public/demo/afterlight.lrc`) and hand-authored scene metadata
+  (`src/data/demo.ts`).
+- **Music:** _"Ossuary 6 - Air"_ by **Kevin MacLeod** (incompetech.com),
+  licensed **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)** —
+  bundled at `public/demo/afterlight.mp3` and credited on-screen, in
+  `/about`, and here. Attribution is all CC BY requires; you may keep it,
+  swap it for another CC / royalty-free track, or wire up Apple Music / Jamendo.
 - **Artwork:** a procedural SVG (`public/demo/afterlight.svg`).
-- **Scene metadata:** hand-authored sections, intensities and animation presets
-  in `src/data/demo.ts`.
 
 Enter it at `/experience/afterlight` or via **Try Demo** on the landing page.
 
@@ -224,15 +224,15 @@ Drop audio files (`mp3 · m4a · aac · ogg · opus · wav · flac`) into
 Audio files and extracted covers are git-ignored; `manifest.json` is committed.
 See `public/tracks/README.md`.
 
-## Adding a demo song
+## Adding / replacing the demo song
 
-1. Add an entry to `RECIPES` in `src/lib/audio/synthetic.ts` (duration, bpm,
-   root, chord events) — or point at a royalty-free file via `LocalAudioProvider`.
-2. Write an `.lrc` in `public/demo/`.
-3. Create a `DemoSongConfig` like `DEMO_CONFIG` in `src/data/demo.ts` with its
-   sections, palette and per-line annotations.
-4. Route it: `/experience/<your-id>` — `prepare()` in
-   `src/stores/experience.ts` branches on the demo id.
+1. Drop a CC / royalty-free audio file at `public/demo/afterlight.mp3` (or a new
+   name).
+2. Write / re-time `public/demo/afterlight.lrc`.
+3. Update `DEMO_CONFIG` in `src/data/demo.ts` — `durationMs`, `previewUrl`, the
+   `sections` map, per-line annotations, and `DEMO_MUSIC_CREDIT`.
+4. It already routes at `/experience/afterlight`; `prepare()` in
+   `src/stores/experience.ts` plays it through `LocalAudioProvider`.
 
 ---
 
@@ -257,7 +257,7 @@ src/
     ui/                    button, cursor, grain, particle canvas
   lib/
     apple-music/           MusicKit service + provider + types
-    audio/                 AudioProvider interface, synthetic, local
+    audio/                 AudioProvider interface, local / stream provider
     lyrics/                LRC parser, engine, LRCLIB client
     visuals/               timeline, presets, color extraction, quality, auto-sections
     experience/            per-frame sampler, pointer
@@ -285,12 +285,20 @@ listed in your MusicKit identifier configuration in the Apple Developer portal.
 
 ---
 
-## Copyright
+## Licensing & credits
 
-LYRICSCAPE never downloads, scrapes, caches or redistributes copyrighted audio
-or lyrics. Apple Music content is streamed by MusicKit under Apple's terms.
-Lyrics come from LRCLIB under its terms. The demo song, score and artwork are
-original works created for this project.
+- **Code, demo lyrics, demo artwork, scene direction** — original, MIT.
+- **Demo music** — *"Ossuary 6 - Air"* by Kevin MacLeod (incompetech.com),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Bundled at
+  `public/demo/afterlight.mp3`; credited on-screen and in `/about`.
+- **Apple Music** content is streamed by MusicKit under Apple's terms — never
+  downloaded, cached or redistributed.
+- **Jamendo** tracks are Creative-Commons licensed; streamed from Jamendo.
+- **Lyrics** for catalog / local songs come from
+  [LRCLIB](https://lrclib.net) under its terms.
+- **Your own tracks** in `public/tracks/` stay on your machine (git-ignored).
+
+LYRICSCAPE never scrapes copyrighted lyric sites or bypasses DRM.
 
 ---
 

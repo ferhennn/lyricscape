@@ -40,8 +40,25 @@ export default function AboutPage() {
             </p>
             <p>
               Without Apple Music credentials it runs in <span className="accent-text">demo mode</span>{" "}
-              — an original song, <em>Afterlight</em>, with an original generative score
-              synthesized live in your browser. No audio files, no copyrighted material.
+              — <em>Afterlight</em>: original lyrics and scene direction set to{" "}
+              <a
+                href="https://incompetech.com/music/royalty-free/mp3-royaltyfree/Ossuary%206%20-%20Air.mp3"
+                className="accent-text underline-offset-4 hover:underline"
+              >
+                &ldquo;Ossuary 6 &ndash; Air&rdquo;
+              </a>{" "}
+              by{" "}
+              <a href="https://incompetech.com" className="accent-text underline-offset-4 hover:underline">
+                Kevin MacLeod
+              </a>
+              , licensed{" "}
+              <a
+                href="https://creativecommons.org/licenses/by/4.0/"
+                className="accent-text underline-offset-4 hover:underline"
+              >
+                CC BY 4.0
+              </a>
+              .
             </p>
             <p className="text-muted">
               Lyrics for catalog songs come from{" "}

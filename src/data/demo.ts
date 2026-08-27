@@ -1,9 +1,14 @@
-// Built-in demo experience. Original song, original lyrics, hand-authored scene
-// metadata — nothing here is copyrighted third-party material.
+// Built-in demo experience.
+// Lyrics and scene direction are original. The backing instrumental is
+// "Ossuary 6 - Air" by Kevin MacLeod (incompetech.com), licensed CC BY 4.0
+// (https://creativecommons.org/licenses/by/4.0/) — bundled and attributed.
 
 import type { AccentPalette, DemoSongConfig, LyricPresetName, SongSection } from "@/types";
 
 export const DEMO_SONG_ID = "afterlight";
+
+export const DEMO_MUSIC_CREDIT =
+  '"Ossuary 6 - Air" by Kevin MacLeod (incompetech.com) — CC BY 4.0';
 
 const palette: AccentPalette = {
   accent: "#E8B98F",
@@ -13,13 +18,13 @@ const palette: AccentPalette = {
 };
 
 const sections: SongSection[] = [
-  { type: "intro", start: 0, end: 28, scene: "stars", intensity: 0.18, label: "INTRO" },
-  { type: "verse", start: 28, end: 52, scene: "room", intensity: 0.4, label: "VERSE" },
-  { type: "pre_chorus", start: 52, end: 64, scene: "hallway", intensity: 0.58, label: "PRE" },
-  { type: "chorus", start: 64, end: 100, scene: "ocean", intensity: 0.86, label: "CHORUS" },
-  { type: "bridge", start: 100, end: 128, scene: "smoke", intensity: 0.3, label: "BRIDGE" },
-  { type: "chorus", start: 128, end: 156, scene: "void", intensity: 0.94, label: "CHORUS" },
-  { type: "outro", start: 156, end: 168, scene: "stars", intensity: 0.14, label: "OUTRO" },
+  { type: "intro", start: 0, end: 36, scene: "stars", intensity: 0.18, label: "INTRO" },
+  { type: "verse", start: 36, end: 92, scene: "room", intensity: 0.4, label: "VERSE" },
+  { type: "pre_chorus", start: 92, end: 104, scene: "hallway", intensity: 0.58, label: "PRE" },
+  { type: "chorus", start: 104, end: 152, scene: "ocean", intensity: 0.86, label: "CHORUS" },
+  { type: "bridge", start: 152, end: 188, scene: "smoke", intensity: 0.3, label: "BRIDGE" },
+  { type: "chorus", start: 188, end: 236, scene: "void", intensity: 0.94, label: "CHORUS" },
+  { type: "outro", start: 236, end: 250, scene: "stars", intensity: 0.14, label: "OUTRO" },
 ];
 
 /** Per-line annotations, index-aligned with the parsed .lrc lines. */
@@ -66,9 +71,10 @@ export const DEMO_CONFIG: DemoSongConfig = {
     title: "Afterlight",
     artistName: "LYRICSCAPE",
     albumName: "Signals in the Dark",
-    durationMs: 168_000,
+    durationMs: 250_000,
     artworkUrl: "/demo/afterlight.svg",
-    provider: "synthetic",
+    provider: "local",
+    previewUrl: "/demo/afterlight.mp3",
     demoId: "afterlight",
   },
   sceneMeta: {

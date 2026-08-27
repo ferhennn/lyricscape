@@ -37,7 +37,7 @@ function ResultRow({ song, index, onPick }: { song: Song; index: number; onPick:
             {song.albumName ? ` · ${song.albumName}` : ""}
           </span>
         </span>
-        {song.provider === "synthetic" && (
+        {song.demoId && (
           <span className="label rounded-full border border-line px-2 py-1">Demo</span>
         )}
         {song.durationMs > 0 && (
