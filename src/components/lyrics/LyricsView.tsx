@@ -18,7 +18,6 @@ interface ViewState {
   index: number;
   current: LyricLine | null;
   previous: LyricLine | null;
-  next: LyricLine | null;
 }
 
 export function LyricsView({ variant = "center" }: Props) {
@@ -32,7 +31,6 @@ export function LyricsView({ variant = "center" }: Props) {
     index: -1,
     current: null,
     previous: null,
-    next: null,
   });
   const wordSpans = useRef<Array<HTMLSpanElement | null>>([]);
   const lastIndex = useRef(-1);
@@ -47,7 +45,6 @@ export function LyricsView({ variant = "center" }: Props) {
           index: lyric.index,
           current: lyric.current,
           previous: lyric.previous,
-          next: lyric.next,
         });
         return;
       }
@@ -103,7 +100,7 @@ export function LyricsView({ variant = "center" }: Props) {
     );
   }
 
-  const { current, previous, next } = view;
+  const { current, previous } = view;
   const preset = LYRIC_PRESETS[resolvePreset(current?.preset, current?.section, current?.emphasis)];
   const emphasis = current?.emphasis ?? 0;
 
@@ -171,22 +168,6 @@ export function LyricsView({ variant = "center" }: Props) {
             )}
           </AnimatePresence>
         </div>
-
-        {/* next */}
-        <AnimatePresence mode="wait">
-          {next && !next.instrumental && (
-            <motion.p
-              key={`n-${next.id}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.2 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-display max-w-3xl text-[clamp(18px,2.6vw,34px)] font-medium leading-tight text-ink blur-[2px]"
-            >
-              {next.text}
-            </motion.p>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

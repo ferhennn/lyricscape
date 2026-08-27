@@ -142,7 +142,7 @@ export type VisualSceneType =
   | "stars"
   | "smoke";
 
-export type VisualMode = "cinematic" | "minimal" | "3d" | "lyric-only";
+export type VisualMode = "cinematic" | "minimal" | "3d" | "lyric-only" | "kinetic";
 
 export interface SongSection {
   type: SongSectionType;
@@ -220,5 +220,4 @@ export interface Settings {
   accentMode: AccentMode;
   customAccent: string;
   visualMode: VisualMode;
-  scrollMode: boolean;
 }

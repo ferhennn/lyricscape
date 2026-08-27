@@ -27,7 +27,6 @@ const DEFAULTS: Settings = {
   accentMode: "auto",
   customAccent: "#E8B98F",
   visualMode: "cinematic",
-  scrollMode: false,
 };
 
 export const useSettings = create<SettingsStore>()(

@@ -8,9 +8,45 @@ import { useHistory } from "@/stores/history";
 import { SongArtwork } from "./SongArtwork";
 import { LocalFileButton } from "./LocalFileButton";
 import { formatTime } from "@/lib/utils";
+import { LOCAL_TRACKS } from "@/data/tracks";
 import type { Song } from "@/types";
 
 const ease = [0.16, 1, 0.3, 1] as const;
+
+function ResultRow({ song, index, onPick }: { song: Song; index: number; onPick: () => void }) {
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.4, ease }}
+    >
+      <button
+        onClick={onPick}
+        data-cursor="interactive"
+        className="group flex w-full items-center gap-5 border-b border-line/60 py-3.5 text-left"
+      >
+        <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]">
+          <SongArtwork src={song.artworkUrl} alt={song.albumName || song.title} seed={song.id} size={52} />
+        </div>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-lg font-medium tracking-tight text-ink transition-transform duration-500 group-hover:translate-x-1">
+            {song.title}
+          </span>
+          <span className="meta block truncate text-muted">
+            {song.artistName}
+            {song.albumName ? ` · ${song.albumName}` : ""}
+          </span>
+        </span>
+        {song.provider === "synthetic" && (
+          <span className="label rounded-full border border-line px-2 py-1">Demo</span>
+        )}
+        {song.durationMs > 0 && (
+          <span className="meta text-muted">{formatTime(song.durationMs / 1000)}</span>
+        )}
+      </button>
+    </motion.li>
+  );
+}
 
 export function SearchOverlay() {
   const router = useRouter();
@@ -19,6 +55,7 @@ export function SearchOverlay() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const push = useHistory((s) => s.push);
+  const recent = useHistory((s) => s.recent);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +83,10 @@ export function SearchOverlay() {
     clear();
     router.push(`/experience/${song.id}`);
   }
+
+  const hasQuery = query.trim().length > 0;
+  const localIds = new Set(LOCAL_TRACKS.map((t) => t.id));
+  const recentTrimmed = recent.filter((s) => !localIds.has(s.id)).slice(0, 8);
 
   return (
     <AnimatePresence>
@@ -100,53 +141,59 @@ export function SearchOverlay() {
               />
             </div>
 
-            <div className="edge-fade-y mt-6 max-h-[46vh] overflow-y-auto">
-              {loading && <p className="meta px-1 py-3 text-muted">Searching…</p>}
-              {error && <p className="meta px-1 py-3 text-accent-2">{error}</p>}
-              {!loading && !error && query && results.length === 0 && (
-                <p className="meta px-1 py-3 text-muted">Nothing found.</p>
+            <div className="edge-fade-y mt-6 max-h-[52vh] overflow-y-auto">
+              {hasQuery ? (
+                <>
+                  {loading && <p className="meta px-1 py-3 text-muted">Searching…</p>}
+                  {error && <p className="meta px-1 py-3 text-accent-2">{error}</p>}
+                  {!loading && !error && results.length === 0 && (
+                    <p className="meta px-1 py-3 text-muted">Nothing found.</p>
+                  )}
+                  <ul className="flex flex-col">
+                    {results.map((song, i) => (
+                      <ResultRow key={song.id} song={song} index={i} onPick={() => choose(song)} />
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {LOCAL_TRACKS.length > 0 && (
+                    <section>
+                      <p className="label mb-1 px-1">Your tracks</p>
+                      <ul className="flex flex-col">
+                        {LOCAL_TRACKS.map((song, i) => (
+                          <ResultRow
+                            key={song.id}
+                            song={song}
+                            index={i}
+                            onPick={() => choose(song)}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  {recentTrimmed.length > 0 && (
+                    <section>
+                      <p className="label mb-1 px-1">Recently played</p>
+                      <ul className="flex flex-col">
+                        {recentTrimmed.map((song, i) => (
+                          <ResultRow
+                            key={song.id}
+                            song={song}
+                            index={i}
+                            onPick={() => choose(song)}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                  {LOCAL_TRACKS.length === 0 && recentTrimmed.length === 0 && (
+                    <p className="meta px-1 py-3 text-muted">
+                      Start typing, or drop an audio file in <code>public/tracks/</code>.
+                    </p>
+                  )}
+                </div>
               )}
-
-              <ul className="flex flex-col">
-                {results.map((song, i) => (
-                  <motion.li
-                    key={song.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04, duration: 0.4, ease }}
-                  >
-                    <button
-                      onClick={() => choose(song)}
-                      data-cursor="interactive"
-                      className="group flex w-full items-center gap-5 border-b border-line/60 py-3.5 text-left"
-                    >
-                      <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]">
-                        <SongArtwork
-                          src={song.artworkUrl}
-                          alt={song.albumName || song.title}
-                          seed={song.id}
-                          size={52}
-                        />
-                      </div>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-lg font-medium tracking-tight text-ink transition-transform duration-500 group-hover:translate-x-1">
-                          {song.title}
-                        </span>
-                        <span className="meta block truncate text-muted">
-                          {song.artistName}
-                          {song.albumName ? ` · ${song.albumName}` : ""}
-                        </span>
-                      </span>
-                      {song.provider === "synthetic" && (
-                        <span className="label rounded-full border border-line px-2 py-1">Demo</span>
-                      )}
-                      {song.durationMs > 0 && (
-                        <span className="meta text-muted">{formatTime(song.durationMs / 1000)}</span>
-                      )}
-                    </button>
-                  </motion.li>
-                ))}
-              </ul>
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t border-line pt-4">

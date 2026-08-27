@@ -1,10 +1,90 @@
 [
   {
+    "id": "drake-fair-trade",
+    "file": "Drake_feat._Travis_Scott_-_Fair_Trade_(mp3.pm).mp3",
+    "title": "Fair Trade",
+    "artist": "Drake",
+    "album": "Certified Lover Boy",
+    "durationMs": 291239
+  },
+  {
     "id": "j-cole-bombs-in-the-ville-hit-the-gas",
     "file": "J._Cole_-_Bombs_in_the_Ville_Hit_the_Gas_(mp3.pm).mp3",
     "title": "Bombs in the Ville / Hit the Gas",
     "artist": "J. Cole",
     "album": "The Off-Season",
     "durationMs": 249384
+  },
+  {
+    "id": "j-cole-i-love-her-again",
+    "file": "J._Cole_-_I_Love_Her_Again_(mp3.pm).mp3",
+    "title": "I Love Her Again",
+    "artist": "J. Cole",
+    "album": "",
+    "durationMs": 335328
+  },
+  {
+    "id": "j-cole-love-yourz",
+    "file": "J._Cole_-_Love_Yourz_(mp3.pm).mp3",
+    "title": "Love Yourz",
+    "artist": "J. Cole",
+    "album": "2014 Forest Hills Drive",
+    "durationMs": 213551
+  },
+  {
+    "id": "kanye-west-cant-tell-me-nothing",
+    "file": "Kanye_West_-_Cant_Tell_Me_Nothing_(mp3.pm).mp3",
+    "title": "Can't Tell Me Nothing",
+    "artist": "Kanye West",
+    "album": "Graduation",
+    "durationMs": 269349
+  },
+  {
+    "id": "kanye-west-runaway",
+    "file": "Kanye_West_Feat._Pusha_T_-_Runaway_(mp3.pm).mp3",
+    "title": "Runaway",
+    "artist": "Kanye West",
+    "album": "My Beautiful Dark Twisted Fantasy",
+    "durationMs": 338913
+  },
+  {
+    "id": "kanye-west-gold-digger",
+    "file": "Kanye_West_feat._Jamie_Foxx_-_Gold_Digger_(mp3.pm).mp3",
+    "title": "Gold Digger",
+    "artist": "Kanye West",
+    "album": "Late Registration",
+    "durationMs": 208379
+  },
+  {
+    "id": "karri-3am-in-oakland",
+    "file": "Karri_-_3AM_in_Oakland_(mp3.pm).mp3",
+    "title": "3AM in Oakland",
+    "artist": "Karri",
+    "album": "",
+    "durationMs": 206315
+  },
+  {
+    "id": "post-malone-white-iverson",
+    "file": "Post_Malone_-_White_Iverson_(mp3.pm).mp3",
+    "title": "White Iverson",
+    "artist": "Post Malone",
+    "album": "Stoney",
+    "durationMs": 254877
+  },
+  {
+    "id": "post-malone-wrapped-around-your-finger",
+    "file": "Post_Malone_-_Wrapped_Around_Your_Finger_(mp3.pm).mp3",
+    "title": "Wrapped Around Your Finger",
+    "artist": "Post Malone",
+    "album": "",
+    "durationMs": 193593
+  },
+  {
+    "id": "post-malone-rockstar",
+    "file": "Post_Malone_feat._21_Savage_-_rockstar_(mp3.pm).mp3",
+    "title": "rockstar",
+    "artist": "Post Malone",
+    "album": "beerbongs & bentleys",
+    "durationMs": 218540
   }
 ]

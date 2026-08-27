@@ -13,8 +13,8 @@ import { Chrome } from "./Chrome";
 import { EndCard } from "./EndCard";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { AccentBridge } from "./AccentBridge";
-import { ScrollMode } from "./ScrollMode";
 import { LyricsView } from "@/components/lyrics/LyricsView";
+import { KineticLyrics } from "@/components/lyrics/KineticLyrics";
 import { FilmGrain } from "@/components/ui/FilmGrain";
 import { ParticleCanvas } from "@/components/ui/ParticleCanvas";
 import { CustomCursor } from "@/components/ui/CustomCursor";
@@ -40,7 +40,6 @@ export function ExperienceRoot({ songId }: { songId: string }) {
   const autoplay = useSettings((s) => s.autoplay);
   const visualMode = useSettings((s) => s.visualMode);
   const showLyrics = useSettings((s) => s.showLyrics);
-  const scrollMode = useSettings((s) => s.scrollMode);
   const pushHistory = useHistory((s) => s.push);
   const reducedPref = useReducedMotion();
 
@@ -92,21 +91,20 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     return cleanup;
   }, [status, autoplay, play]);
 
-  // Controls auto-hide.
+  // Controls dim (never fully hide) after a stretch of inactivity while playing.
   useEffect(() => {
     const bump = () => {
       setControlsVisible(true);
       if (idleTimer.current) clearTimeout(idleTimer.current);
       idleTimer.current = setTimeout(() => {
         if (useExperience.getState().status === "playing") setControlsVisible(false);
-      }, 3200);
+      }, 6000);
     };
-    window.addEventListener("pointermove", bump);
-    window.addEventListener("keydown", bump);
+    const evts = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"] as const;
+    evts.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     bump();
     return () => {
-      window.removeEventListener("pointermove", bump);
-      window.removeEventListener("keydown", bump);
+      evts.forEach((e) => window.removeEventListener(e, bump));
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, [setControlsVisible]);
@@ -129,43 +127,42 @@ export function ExperienceRoot({ songId }: { songId: string }) {
   const lyricVariant =
     visualMode === "lyric-only" ? "reader" : visualMode === "minimal" ? "minimal" : "center";
 
-  const world = (
-    <>
-      {use3D ? (
-        <ExperienceCanvas />
-      ) : (
-        <div className="absolute inset-0 bg-void">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(120% 90% at 50% 45%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 65%)",
-            }}
-          />
-          {visualMode !== "lyric-only" && (
-            <ParticleCanvas
-              className="absolute inset-0 h-full w-full opacity-60"
-              color="232,185,143"
-              intensity={0.5}
+  const world =
+    visualMode === "kinetic" ? (
+      <KineticLyrics showLyrics={showLyrics} />
+    ) : (
+      <>
+        {use3D ? (
+          <ExperienceCanvas />
+        ) : (
+          <div className="absolute inset-0 bg-void">
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(120% 90% at 50% 45%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 65%)",
+              }}
             />
-          )}
-        </div>
-      )}
+            {visualMode !== "lyric-only" && (
+              <ParticleCanvas
+                className="absolute inset-0 h-full w-full opacity-60"
+                color="232,185,143"
+                intensity={0.5}
+              />
+            )}
+          </div>
+        )}
 
-      {showLyrics && <LyricsView variant={lyricVariant} />}
+        {showLyrics && <LyricsView variant={lyricVariant} />}
 
-      {visualMode !== "lyric-only" && <FilmGrain opacity={visualMode === "minimal" ? 0.03 : 0.05} />}
-    </>
-  );
+        {visualMode !== "lyric-only" && (
+          <FilmGrain opacity={visualMode === "minimal" ? 0.03 : 0.05} />
+        )}
+      </>
+    );
 
   return (
-    <div
-      className={
-        scrollMode
-          ? "relative min-h-dvh bg-void text-ink"
-          : "fixed inset-0 overflow-hidden bg-void text-ink"
-      }
-    >
+    <div className="fixed inset-0 overflow-hidden bg-void text-ink">
       <CustomCursor />
       <AccentBridge />
       <KeyboardShortcuts />
@@ -203,17 +200,15 @@ export function ExperienceRoot({ songId }: { songId: string }) {
         )}
       </AnimatePresence>
 
-      {scrollMode ? <ScrollMode>{world}</ScrollMode> : world}
+      {world}
 
       {status === "ended" && <EndCard />}
 
-      {visualMode !== "lyric-only" && status !== "ended" && !scrollMode && (
+      {visualMode !== "lyric-only" && status !== "ended" && (
         <Chrome visible={controlsVisible} />
       )}
 
-      {(visualMode === "lyric-only" || scrollMode) && status !== "ended" && (
-        <MinimalExit />
-      )}
+      {visualMode === "lyric-only" && status !== "ended" && <MinimalExit />}
     </div>
   );
 }

@@ -35,11 +35,19 @@ function tidy(s) {
     .trim();
 }
 
+// "Kanye West feat. Pusha T" -> "Kanye West" (LRCLIB matches on the lead artist).
+function leadArtist(a) {
+  return a
+    .replace(/\s*[([]?\s*(?:feat|ft|featuring|with)\.?\s+.*$/i, "")
+    .replace(/\s*[([]?\s*(?:feat|ft|featuring)\.?.*$/i, "")
+    .trim();
+}
+
 function fromFilename(name) {
   const base = tidy(name.replace(/\.[^.]+$/, ""));
   const m = base.match(/^(.+?)\s*[-–—]\s*(.+?)$/);
   if (m && m[1].trim() && m[2].trim()) {
-    return { artist: m[1].trim(), title: m[2].trim() };
+    return { artist: leadArtist(m[1].trim()), title: m[2].trim() };
   }
   return { artist: "", title: base };
 }

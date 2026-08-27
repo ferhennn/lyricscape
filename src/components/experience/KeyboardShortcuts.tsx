@@ -6,7 +6,7 @@ import { useExperience } from "@/stores/experience";
 import { useSettings } from "@/stores/settings";
 import type { VisualMode } from "@/types";
 
-const MODE_CYCLE: VisualMode[] = ["cinematic", "3d", "minimal", "lyric-only"];
+const MODE_CYCLE: VisualMode[] = ["cinematic", "3d", "kinetic", "minimal", "lyric-only"];
 
 export function KeyboardShortcuts() {
   const router = useRouter();

@@ -51,17 +51,30 @@ export const PROFILES: Record<QualityProfile["level"], QualityProfile> = {
   },
 };
 
+let webglCache: boolean | null = null;
+
+/**
+ * Cached once per page: repeatedly creating throwaway contexts can exhaust the
+ * browser's WebGL context limit and start returning false, which would make the
+ * experience flicker between the 3D canvas and the fallback.
+ */
 export function detectWebGL(): boolean {
   if (typeof window === "undefined") return false;
+  if (webglCache !== null) return webglCache;
   try {
     const canvas = document.createElement("canvas");
-    return !!(
-      window.WebGLRenderingContext &&
-      (canvas.getContext("webgl2") || canvas.getContext("webgl"))
-    );
+    const ctx =
+      canvas.getContext("webgl2") ||
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl");
+    webglCache = !!(window.WebGLRenderingContext && ctx);
+    // Release the probe context immediately.
+    const lose = (ctx as WebGLRenderingContext | null)?.getExtension("WEBGL_lose_context");
+    lose?.loseContext?.();
   } catch {
-    return false;
+    webglCache = false;
   }
+  return webglCache;
 }
 
 export function autoQuality(): QualityProfile["level"] {

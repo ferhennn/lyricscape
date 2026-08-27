@@ -43,7 +43,7 @@ export function Timeline({ visible }: { visible: boolean }) {
   return (
     <div
       className="pointer-events-auto absolute inset-x-0 bottom-0 px-4 pb-3 transition-opacity duration-500 sm:px-8"
-      style={{ opacity: visible ? 1 : 0 }}
+      style={{ opacity: visible ? 1 : 0.5 }}
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span ref={timeRef} className="meta tabular-nums text-muted">

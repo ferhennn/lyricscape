@@ -1,7 +1,6 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { AdaptiveDpr } from "@react-three/drei";
 import { useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { FrameProvider } from "./frame-context";
@@ -38,14 +37,13 @@ export default function ExperienceCanvas() {
       frameloop="always"
     >
       <color attach="background" args={["#050505"]} />
-      <fog attach="fog" args={["#050505", 12, 46]} />
+      <fog attach="fog" args={["#050505", 14, 52]} />
       <FrameProvider>
         <CameraController reduced={reduced} />
         <SceneManager palette={palette} reduced={reduced} detail={profile.sceneDetail} />
         <ParticleField count={particleCount} color={palette.accent} />
         <PostFX profile={profile} reduced={reduced} />
       </FrameProvider>
-      <AdaptiveDpr pixelated={false} />
     </Canvas>
   );
 }

@@ -198,9 +198,6 @@ If WebGL is unavailable the experience swaps the `<Canvas>` for a gradient +
 `Cinematic` · `3D` · `Minimal` (no WebGL, typography + 2D field) ·
 `Lyric only` (pure reading view). Switch in the player, in Settings, or with `V`.
 
-**Scroll mode** turns the wheel into a scrubber — scroll position maps to song
-position and the world moves through it.
-
 ---
 
 ## Adding your own tracks

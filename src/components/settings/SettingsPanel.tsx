@@ -143,8 +143,9 @@ export function SettingsPanel() {
           <Row label="Default mode">
             {seg("visualMode", [
               { value: "cinematic", label: "Cinematic" },
-              { value: "minimal", label: "Minimal" },
               { value: "3d", label: "3D" },
+              { value: "kinetic", label: "Kinetic" },
+              { value: "minimal", label: "Minimal" },
               { value: "lyric-only", label: "Lyric only" },
             ])}
           </Row>
@@ -193,9 +194,6 @@ export function SettingsPanel() {
           </Row>
           <Row label="Autoplay on enter">
             <Toggle value={s.autoplay} onChange={(v) => set("autoplay", v)} />
-          </Row>
-          <Row label="Scroll mode by default">
-            <Toggle value={s.scrollMode} onChange={(v) => set("scrollMode", v)} />
           </Row>
         </section>
 

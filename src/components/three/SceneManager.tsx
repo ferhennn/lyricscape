@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 import { useSceneFrame } from "./frame-context";
 import { SCENE_COMPONENTS, type SceneProps } from "./scenes";
 import type { AccentPalette, VisualSceneType } from "@/types";
@@ -20,7 +21,8 @@ interface TransitionState {
 
 /**
  * Cross-fades between visual scenes as the timeline's `scene` field changes.
- * Re-renders only during the ~1.6s fade; steady state is render-free.
+ * A persistent deep backdrop sits behind every scene so the screen never drops
+ * to black mid-transition. Re-renders only during the ~1.6s fade.
  */
 export function SceneManager({ palette, reduced, detail }: Props) {
   const frame = useSceneFrame();
@@ -46,10 +48,23 @@ export function SceneManager({ palette, reduced, detail }: Props) {
   const Previous = t.previous ? SCENE_COMPONENTS[t.previous] : null;
   const shared: Omit<SceneProps, "opacity"> = { palette, reduced, detail };
 
+  // Overlapped fade: incoming rises fast, outgoing holds then falls — so total
+  // coverage never dips and no black shows through.
+  const inOpacity = t.previous ? Math.min(1, t.mix * 1.9) : 1;
+  const outOpacity = Math.max(0, 1 - Math.max(0, t.mix - 0.3) * 1.7);
+
+  const deep = useMemo(() => new THREE.Color(palette.deep), [palette.deep]);
+
   return (
     <group>
-      {Previous && <Previous {...shared} opacity={1 - t.mix} />}
-      <Current {...shared} opacity={t.previous ? t.mix : 1} />
+      {/* persistent ground — always fully opaque */}
+      <mesh scale={70} renderOrder={-10}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial color={deep} side={THREE.BackSide} depthWrite={false} fog={false} />
+      </mesh>
+
+      {Previous && <Previous {...shared} opacity={outOpacity} />}
+      <Current {...shared} opacity={inOpacity} />
     </group>
   );
 }
