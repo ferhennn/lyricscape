@@ -16,18 +16,26 @@ import type { LyricLine } from "@/types";
  * cropped by the viewport, or the line broken word-by-word and scattered.
  */
 
-type Anchor = { x: number; y: number; align: "left" | "right" | "center" };
+type Anchor = {
+  x: number;
+  y: number;
+  align: "left" | "right" | "center";
+  /** which edge of the text sits on (x,y): "top" | "mid" | "bot". */
+  vy: "top" | "mid" | "bot";
+};
 
+// y stays within the viewport; vy pins the right text edge so tall type never
+// runs far past the top/bottom. A word may sit ~half-cut at an edge, no more.
 const ANCHORS: Anchor[] = [
-  { x: 4, y: 8, align: "left" },
-  { x: 96, y: 12, align: "right" },
-  { x: 3, y: 82, align: "left" },
-  { x: 97, y: 88, align: "right" },
-  { x: 50, y: 48, align: "center" },
-  { x: 6, y: 50, align: "left" },
-  { x: 94, y: 46, align: "right" },
-  { x: 50, y: 12, align: "center" },
-  { x: 50, y: 86, align: "center" },
+  { x: 4, y: 10, align: "left", vy: "top" },
+  { x: 96, y: 12, align: "right", vy: "top" },
+  { x: 3, y: 90, align: "left", vy: "bot" },
+  { x: 97, y: 88, align: "right", vy: "bot" },
+  { x: 50, y: 50, align: "center", vy: "mid" },
+  { x: 6, y: 50, align: "left", vy: "mid" },
+  { x: 94, y: 48, align: "right", vy: "mid" },
+  { x: 50, y: 14, align: "center", vy: "top" },
+  { x: 50, y: 88, align: "center", vy: "bot" },
 ];
 
 interface LineLayout {
@@ -48,19 +56,19 @@ function planLine(line: LyricLine, index: number): LineLayout {
   const useWords = wordCount >= 2 && wordCount <= 7 && rand() > 0.42;
   const anchor = ANCHORS[Math.floor(rand() * ANCHORS.length)];
   const emphasis = line.emphasis ?? 0;
-  const baseSize = 9 + rand() * 9 + emphasis * 6;
+  const baseSize = 8 + rand() * 7 + emphasis * 5;
 
   const spots = line.words.map(() => ({
-    x: 6 + rand() * 82,
-    y: 10 + rand() * 74,
-    size: 7 + rand() * 10 + emphasis * 5,
-    rot: (rand() - 0.5) * 6,
+    x: 12 + rand() * 70,
+    y: 20 + rand() * 58,
+    size: 6 + rand() * 8 + emphasis * 4,
+    rot: (rand() - 0.5) * 5,
   }));
 
   return {
     mode: useWords ? "words" : "line",
     anchor,
-    size: Math.min(30, baseSize + (line.text.length < 14 ? 8 : 0)),
+    size: Math.min(22, baseSize + (line.text.length < 14 ? 6 : 0)),
     nowrap: rand() > 0.55 && line.text.length < 26,
     invertWord: rand() > 0.7 && wordCount > 1 ? Math.floor(rand() * wordCount) : -1,
     spots,
@@ -157,13 +165,13 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
               style={{
                 left: `${layout.anchor.x}%`,
                 top: `${layout.anchor.y}%`,
-                transform: `translate(${anchorShift(layout.anchor)}, -50%)`,
+                transform: `translate(${anchorShift(layout.anchor)}, ${anchorShiftY(layout.anchor)})`,
                 textAlign: layout.anchor.align,
-                fontSize: `clamp(64px, ${layout.size}vw, 340px)`,
+                fontSize: `clamp(48px, ${layout.size}vw, 230px)`,
                 letterSpacing: "-0.04em",
                 textTransform: layout.upper ? "uppercase" : "none",
                 whiteSpace: layout.nowrap ? "nowrap" : "normal",
-                maxWidth: layout.nowrap ? "none" : "78vw",
+                maxWidth: "92vw",
               }}
             >
               {snap.line.text}
@@ -191,7 +199,9 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
                       left: `${spot.x}%`,
                       top: `${spot.y}%`,
                       transform: `translate(-50%, -50%) rotate(${spot.rot}deg)`,
-                      fontSize: `clamp(40px, ${spot.size}vw, 240px)`,
+                      fontSize: `clamp(36px, ${spot.size}vw, 170px)`,
+                      whiteSpace: "nowrap",
+                      maxWidth: "84vw",
                       letterSpacing: "-0.04em",
                       textTransform: layout.upper ? "uppercase" : "none",
                       color: invert ? "#050505" : "var(--color-ink)",
@@ -220,6 +230,13 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
 function anchorShift(a: Anchor): string {
   if (a.align === "left") return "0";
   if (a.align === "right") return "-100%";
+  return "-50%";
+}
+
+function anchorShiftY(a: Anchor): string {
+  // pin the text so the far edge stays ~in view (a partial crop is fine)
+  if (a.vy === "top") return "-10%";
+  if (a.vy === "bot") return "-90%";
   return "-50%";
 }
 

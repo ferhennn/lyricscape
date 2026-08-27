@@ -57,9 +57,9 @@ export function SceneManager({ palette, reduced, detail }: Props) {
 
   return (
     <group>
-      {/* persistent ground — always fully opaque */}
-      <mesh scale={70} renderOrder={-10}>
-        <sphereGeometry args={[1, 16, 16]} />
+      {/* persistent ground — always fully opaque, so a transition never shows black */}
+      <mesh scale={80} renderOrder={-10}>
+        <sphereGeometry args={[1, 40, 24]} />
         <meshBasicMaterial color={deep} side={THREE.BackSide} depthWrite={false} fog={false} />
       </mesh>
 

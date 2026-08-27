@@ -1,13 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useExperience } from "@/stores/experience";
 import { useSettings } from "@/stores/settings";
+import { useHistory } from "@/stores/history";
 import { Timeline } from "./Timeline";
 import { cn } from "@/lib/utils";
-import type { VisualMode } from "@/types";
+import { LOCAL_TRACKS } from "@/data/tracks";
+import type { Song, VisualMode } from "@/types";
 
 const MODES: { value: VisualMode; label: string }[] = [
   { value: "cinematic", label: "Cinematic" },
@@ -48,6 +50,45 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
+function NavButton({
+  icon,
+  target,
+  onSeek,
+  onGo,
+  label,
+}: {
+  icon: "back" | "fwd";
+  target: Song | null;
+  onSeek: () => void;
+  onGo: (s: Song | null) => void;
+  label: string;
+}) {
+  return (
+    <span className="group relative">
+      <button
+        onClick={() => (target ? onGo(target) : onSeek())}
+        data-cursor="interactive"
+        className="p-2 text-ink/70 hover:text-ink"
+        aria-label={target ? `${label}: ${target.title}` : label}
+      >
+        <Icon name={icon} />
+      </button>
+      {target && (
+        <span
+          className={cn(
+            "pointer-events-none absolute -top-10 whitespace-nowrap rounded-md border border-line bg-void-2/95 px-2.5 py-1.5 meta text-ink opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100",
+            icon === "back" ? "left-0" : "right-0",
+          )}
+        >
+          <span className="text-muted">{icon === "back" ? "Prev · " : "Next · "}</span>
+          {target.title}
+          <span className="text-muted"> — {target.artistName}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function Chrome({ visible }: { visible: boolean }) {
   const router = useRouter();
   const {
@@ -59,6 +100,26 @@ export function Chrome({ visible }: { visible: boolean }) {
     toggleMute,
     teardown,
   } = useExperience();
+  const pushHistory = useHistory((s) => s.push);
+
+  // Prev / next walk the local track library (wraps around).
+  const { prev, next } = useMemo(() => {
+    if (LOCAL_TRACKS.length === 0) return { prev: null, next: null };
+    const i = LOCAL_TRACKS.findIndex((t) => t.id === song?.id);
+    const at = (n: number) =>
+      LOCAL_TRACKS[((n % LOCAL_TRACKS.length) + LOCAL_TRACKS.length) % LOCAL_TRACKS.length];
+    return i === -1
+      ? { prev: at(-1), next: at(0) }
+      : { prev: at(i - 1), next: at(i + 1) };
+  }, [song?.id]);
+
+  const goTo = (t: Song | null) => {
+    if (!t) return;
+    pushHistory(t);
+    teardown();
+    router.push(`/experience/${t.id}`);
+  };
+
   const showLyrics = useSettings((s) => s.showLyrics);
   const setSetting = useSettings((s) => s.set);
   const visualMode = useSettings((s) => s.visualMode);
@@ -111,9 +172,13 @@ export function Chrome({ visible }: { visible: boolean }) {
       >
         <div className="pointer-events-auto flex items-center justify-between px-5 pb-12 sm:px-8 sm:pb-14">
           <div className="flex items-center gap-2">
-            <button onClick={() => seekBy(-10)} data-cursor="interactive" className="p-2 text-ink/70 hover:text-ink" aria-label="Back 10 seconds">
-              <Icon name="back" />
-            </button>
+            <NavButton
+              icon="back"
+              target={prev}
+              onSeek={() => seekBy(-10)}
+              label="Previous track"
+              onGo={goTo}
+            />
             <button
               onClick={togglePlay}
               data-cursor="interactive"
@@ -122,9 +187,13 @@ export function Chrome({ visible }: { visible: boolean }) {
             >
               <Icon name={playing ? "pause" : "play"} />
             </button>
-            <button onClick={() => seekBy(10)} data-cursor="interactive" className="p-2 text-ink/70 hover:text-ink" aria-label="Forward 10 seconds">
-              <Icon name="fwd" />
-            </button>
+            <NavButton
+              icon="fwd"
+              target={next}
+              onSeek={() => seekBy(10)}
+              label="Next track"
+              onGo={goTo}
+            />
           </div>
 
           <div className="flex items-center gap-4">

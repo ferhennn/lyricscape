@@ -14,6 +14,64 @@ export interface SceneProps {
   detail: number;
 }
 
+/* A soft radial glow billboard — no hard edges. */
+const GLOW_FRAG = /* glsl */ `
+  precision mediump float;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  varying vec2 vUv;
+  void main() {
+    float d = length(vUv - 0.5) * 2.0;
+    float a = pow(1.0 - clamp(d, 0.0, 1.0), 2.4) * uOpacity;
+    gl_FragColor = vec4(uColor, a);
+  }
+`;
+const GLOW_VERT = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+function SoftGlow({
+  position,
+  size,
+  color,
+  opacity,
+}: {
+  position: [number, number, number];
+  size: number;
+  color: string;
+  opacity: number;
+}) {
+  const mat = useRef<THREE.ShaderMaterial>(null);
+  const uniforms = useMemo(
+    () => ({ uColor: { value: new THREE.Color(color) }, uOpacity: { value: opacity } }),
+    [color, opacity],
+  );
+  useFrame(() => {
+    if (mat.current) {
+      mat.current.uniforms.uOpacity.value = opacity;
+      (mat.current.uniforms.uColor.value as THREE.Color).set(color);
+    }
+  });
+  return (
+    <mesh position={position}>
+      <planeGeometry args={[size, size]} />
+      <shaderMaterial
+        ref={mat}
+        uniforms={uniforms}
+        vertexShader={GLOW_VERT}
+        fragmentShader={GLOW_FRAG}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </mesh>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* STARS                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -169,11 +227,13 @@ export function RoomScene({ opacity, palette }: SceneProps) {
           opacity={opacity}
         />
       </mesh>
-      {/* window */}
-      <mesh position={[0, 0.5, -17.6]}>
-        <planeGeometry args={[4.5, 7]} />
-        <meshBasicMaterial color={palette.light} transparent opacity={opacity * 0.9} />
-      </mesh>
+      {/* soft light source — a radial glow, no hard edges */}
+      <SoftGlow
+        position={[0, 0.5, -17.4]}
+        size={13}
+        color={palette.light}
+        opacity={opacity * 0.55}
+      />
       <spotLight
         ref={light}
         position={[0, 1, -16]}

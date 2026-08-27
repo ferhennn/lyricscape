@@ -195,8 +195,13 @@ If WebGL is unavailable the experience swaps the `<Canvas>` for a gradient +
 
 ## Visual modes
 
-`Cinematic` · `3D` · `Minimal` (no WebGL, typography + 2D field) ·
-`Lyric only` (pure reading view). Switch in the player, in Settings, or with `V`.
+`Cinematic` · `3D` · `Kinetic` (churning gradient + brutalist type placed
+anywhere on screen, line- or word-scattered) · `Minimal` (no WebGL, typography +
+2D field) · `Lyric only` (pure reading view). Switch in the player, in Settings,
+or with `V`.
+
+In the player the ⟨ / ⟩ buttons step through your local track library (hover to
+see which song plays next); the timeline scrubs, and `← / →` seek 5s.
 
 ---
 
