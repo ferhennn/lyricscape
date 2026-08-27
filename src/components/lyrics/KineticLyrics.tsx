@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { type CSSProperties, useCallback, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useAnimationFrame, useReducedMotion } from "motion/react";
 import { useExperience } from "@/stores/experience";
 import { useExperienceFrame } from "@/hooks/useExperienceFrame";
 import { LyricsEngine } from "@/lib/lyrics/engine";
@@ -11,41 +11,37 @@ import type { ExperienceFrame } from "@/lib/experience/frame";
 import type { LyricLine } from "@/types";
 
 /**
- * Kinetic / brutalist lyric mode. A dark gradient churns behind oversized type
- * that lands anywhere on the screen — whole lines slammed into a corner and
- * cropped by the viewport, or the line broken word-by-word and scattered.
+ * Kinetic / brutalist lyric mode. A dark gradient drifts continuously behind
+ * oversized type that lands anywhere on the screen — whole lines slammed into a
+ * corner, or the line broken word-by-word and scattered, each word fading as the
+ * next arrives.
  */
 
 type Anchor = {
   x: number;
   y: number;
   align: "left" | "right" | "center";
-  /** which edge of the text sits on (x,y): "top" | "mid" | "bot". */
   vy: "top" | "mid" | "bot";
 };
 
-// y stays within the viewport; vy pins the right text edge so tall type never
-// runs far past the top/bottom. A word may sit ~half-cut at an edge, no more.
+// Kept well inside the viewport; vy pins the near text edge.
 const ANCHORS: Anchor[] = [
-  { x: 4, y: 10, align: "left", vy: "top" },
-  { x: 96, y: 12, align: "right", vy: "top" },
-  { x: 3, y: 90, align: "left", vy: "bot" },
-  { x: 97, y: 88, align: "right", vy: "bot" },
+  { x: 12, y: 18, align: "left", vy: "top" },
+  { x: 88, y: 20, align: "right", vy: "top" },
+  { x: 12, y: 82, align: "left", vy: "bot" },
+  { x: 88, y: 80, align: "right", vy: "bot" },
   { x: 50, y: 50, align: "center", vy: "mid" },
-  { x: 6, y: 50, align: "left", vy: "mid" },
-  { x: 94, y: 48, align: "right", vy: "mid" },
-  { x: 50, y: 14, align: "center", vy: "top" },
-  { x: 50, y: 88, align: "center", vy: "bot" },
+  { x: 16, y: 50, align: "left", vy: "mid" },
+  { x: 84, y: 48, align: "right", vy: "mid" },
+  { x: 50, y: 20, align: "center", vy: "top" },
+  { x: 50, y: 80, align: "center", vy: "bot" },
 ];
 
 interface LineLayout {
   mode: "line" | "words";
   anchor: Anchor;
-  /** vw font size for the whole-line mode. */
   size: number;
-  nowrap: boolean;
-  invertWord: number; // index of a word to render as an inverted block, or -1
-  /** Per-word absolute positions (0..100) for the words mode. */
+  invertWord: number;
   spots: Array<{ x: number; y: number; size: number; rot: number }>;
   upper: boolean;
 }
@@ -56,20 +52,19 @@ function planLine(line: LyricLine, index: number): LineLayout {
   const useWords = wordCount >= 2 && wordCount <= 7 && rand() > 0.42;
   const anchor = ANCHORS[Math.floor(rand() * ANCHORS.length)];
   const emphasis = line.emphasis ?? 0;
-  const baseSize = 8 + rand() * 7 + emphasis * 5;
+  const baseSize = 6 + rand() * 5 + emphasis * 4;
 
   const spots = line.words.map(() => ({
-    x: 12 + rand() * 70,
-    y: 20 + rand() * 58,
-    size: 6 + rand() * 8 + emphasis * 4,
-    rot: (rand() - 0.5) * 5,
+    x: 20 + rand() * 60,
+    y: 26 + rand() * 46,
+    size: 4.5 + rand() * 5 + emphasis * 3,
+    rot: (rand() - 0.5) * 4,
   }));
 
   return {
     mode: useWords ? "words" : "line",
     anchor,
-    size: Math.min(22, baseSize + (line.text.length < 14 ? 6 : 0)),
-    nowrap: rand() > 0.55 && line.text.length < 26,
+    size: Math.min(15, baseSize + (line.text.length < 14 ? 4 : 0)),
     invertWord: rand() > 0.7 && wordCount > 1 ? Math.floor(rand() * wordCount) : -1,
     spots,
     upper: rand() > 0.25,
@@ -91,6 +86,7 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
   const lastIndex = useRef(-1);
   const lastWord = useRef(-1);
   const timeRef = useRef<HTMLSpanElement>(null);
+  const gradientRef = useRef<HTMLDivElement>(null);
 
   const onFrame = useCallback((frame: ExperienceFrame) => {
     const { lyric, time } = frame;
@@ -110,16 +106,28 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
 
   useExperienceFrame(onFrame);
 
+  // Continuous, non-repeating gradient drift — layered sines at unrelated rates.
+  useAnimationFrame((t) => {
+    const el = gradientRef.current;
+    if (!el || reduced) return;
+    const s = t / 1000;
+    const x = Math.sin(s * 0.11) * 6 + Math.sin(s * 0.037) * 5;
+    const y = Math.cos(s * 0.09) * 5 + Math.sin(s * 0.023) * 6;
+    const rot = Math.sin(s * 0.05) * 7 + Math.sin(s * 0.017) * 4;
+    const scale = 1.12 + Math.sin(s * 0.07) * 0.1 + Math.sin(s * 0.013) * 0.05;
+    el.style.transform = `translate3d(${x}%, ${y}%, 0) rotate(${rot}deg) scale(${scale})`;
+  });
+
   const layout = useMemo(
     () => (snap.line ? planLine(snap.line, snap.index) : null),
     [snap.line, snap.index],
   );
 
-  const gradient = useMemo(
+  const gradient = useMemo<CSSProperties>(
     () => ({
-      background: `radial-gradient(60% 50% at 20% 20%, ${hexA(palette.deep, 0.9)}, transparent 60%),
-                   radial-gradient(50% 60% at 85% 75%, ${hexA(palette.secondary, 0.5)}, transparent 60%),
-                   radial-gradient(80% 80% at 60% 40%, ${hexA(palette.accent, 0.12)}, transparent 70%),
+      background: `radial-gradient(55% 45% at 22% 22%, ${hexA(palette.deep, 0.9)}, transparent 60%),
+                   radial-gradient(45% 55% at 82% 72%, ${hexA(palette.secondary, 0.5)}, transparent 60%),
+                   radial-gradient(75% 75% at 58% 42%, ${hexA(palette.accent, 0.12)}, transparent 70%),
                    #050505`,
     }),
     [palette],
@@ -127,22 +135,10 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-void">
-      {/* churning gradient */}
-      <motion.div
-        aria-hidden
-        className="absolute -inset-[40%]"
-        style={gradient}
-        animate={
-          reduced
-            ? undefined
-            : { rotate: [0, 8, -6, 0], scale: [1, 1.15, 1.05, 1], x: ["-4%", "3%", "-2%", "-4%"] }
-        }
-        transition={{ duration: 44, ease: "easeInOut", repeat: Infinity }}
-      />
+      <div ref={gradientRef} aria-hidden className="absolute -inset-[45%]" style={gradient} />
       <div className="absolute inset-0 bg-void/30" />
       <FilmGrain opacity={0.06} />
 
-      {/* brutalist frame + timecode */}
       <div className="pointer-events-none absolute inset-6 border border-line" />
       <span
         ref={timeRef}
@@ -150,7 +146,6 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
       >
         0:00
       </span>
-      <span className="label pointer-events-none absolute right-9 top-8 text-muted">KINETIC</span>
 
       {showLyrics && layout && snap.line && !snap.line.instrumental && (
         <AnimatePresence>
@@ -161,17 +156,16 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
               animate={reduced ? { opacity: 1 } : { opacity: 1, clipPath: "inset(0 0% 0 0)" }}
               exit={reduced ? { opacity: 0 } : { opacity: 0, clipPath: "inset(0 0 0 100%)" }}
               transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-              className="text-display absolute font-semibold leading-[0.85] text-ink"
+              className="text-display absolute font-semibold leading-[0.9] text-ink"
               style={{
                 left: `${layout.anchor.x}%`,
                 top: `${layout.anchor.y}%`,
                 transform: `translate(${anchorShift(layout.anchor)}, ${anchorShiftY(layout.anchor)})`,
                 textAlign: layout.anchor.align,
-                fontSize: `clamp(48px, ${layout.size}vw, 230px)`,
+                fontSize: `clamp(40px, ${layout.size}vw, 150px)`,
                 letterSpacing: "-0.04em",
                 textTransform: layout.upper ? "uppercase" : "none",
-                whiteSpace: layout.nowrap ? "nowrap" : "normal",
-                maxWidth: "92vw",
+                maxWidth: "68vw",
               }}
             >
               {snap.line.text}
@@ -185,24 +179,31 @@ export function KineticLyrics({ showLyrics = true }: { showLyrics?: boolean }) {
               transition={{ duration: 0.3 }}
             >
               {snap.line.words.map((w, i) => {
-                const shown = i <= snap.activeWord;
-                const spot = layout.spots[i] ?? { x: 50, y: 50, size: 12, rot: 0 };
-                const invert = i === layout.invertWord;
+                // Trailing fade: brightest at the active word, fading as newer
+                // words arrive, gone ~2 words back.
+                const behind = snap.activeWord - i;
+                const wordOpacity =
+                  behind < 0 ? 0 : behind === 0 ? 1 : behind === 1 ? 0.4 : behind === 2 ? 0.14 : 0;
+                const spot = layout.spots[i] ?? { x: 50, y: 50, size: 10, rot: 0 };
+                const invert = i === layout.invertWord && behind === 0;
                 return (
                   <motion.span
                     key={i}
-                    initial={{ opacity: 0, scale: reduced ? 1 : 0.7 }}
-                    animate={shown ? { opacity: 1, scale: 1 } : { opacity: 0, scale: reduced ? 1 : 0.7 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, scale: reduced ? 1 : 0.8 }}
+                    animate={{
+                      opacity: wordOpacity,
+                      scale: behind === 0 || reduced ? 1 : 0.92,
+                    }}
+                    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                     className="text-display absolute font-semibold leading-none"
                     style={{
                       left: `${spot.x}%`,
                       top: `${spot.y}%`,
                       transform: `translate(-50%, -50%) rotate(${spot.rot}deg)`,
-                      fontSize: `clamp(36px, ${spot.size}vw, 170px)`,
-                      whiteSpace: "nowrap",
-                      maxWidth: "84vw",
+                      fontSize: `clamp(30px, ${spot.size}vw, 120px)`,
                       letterSpacing: "-0.04em",
+                      whiteSpace: "nowrap",
+                      maxWidth: "72vw",
                       textTransform: layout.upper ? "uppercase" : "none",
                       color: invert ? "#050505" : "var(--color-ink)",
                       background: invert ? "var(--color-ink)" : "transparent",
@@ -234,9 +235,8 @@ function anchorShift(a: Anchor): string {
 }
 
 function anchorShiftY(a: Anchor): string {
-  // pin the text so the far edge stays ~in view (a partial crop is fine)
-  if (a.vy === "top") return "-10%";
-  if (a.vy === "bot") return "-90%";
+  if (a.vy === "top") return "0";
+  if (a.vy === "bot") return "-100%";
   return "-50%";
 }
 
