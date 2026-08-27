@@ -81,7 +81,9 @@ export function SearchOverlay() {
                     ? "Apple Music"
                     : source === "jamendo"
                       ? "Jamendo"
-                      : ""}
+                      : source === "local"
+                        ? "Your tracks"
+                        : ""}
               </span>
             </div>
 

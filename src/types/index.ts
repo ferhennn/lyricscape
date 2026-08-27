@@ -75,7 +75,7 @@ export interface Lyrics {
   lines: LyricLine[];
   synced: boolean;
   wordLevel: boolean;
-  source: "lrclib" | "demo" | "none";
+  source: "lrclib" | "demo" | "local" | "none";
   language?: string;
   /** Plain, unsynced text fallback. */
   plainText?: string;

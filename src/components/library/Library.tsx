@@ -12,6 +12,7 @@ import { useSearch } from "@/stores/search";
 import { useAppleMusic } from "@/hooks/useAppleMusic";
 import { appleMusic } from "@/lib/apple-music/service";
 import { DEMO_CONFIG } from "@/data/demo";
+import { LOCAL_TRACKS } from "@/data/tracks";
 import type { Song } from "@/types";
 import { formatTime } from "@/lib/utils";
 
@@ -148,6 +149,7 @@ export function Library() {
         </div>
       )}
 
+      <Shelf title="Your tracks" songs={LOCAL_TRACKS} />
       <Shelf title="Featured demo" songs={[DEMO_CONFIG.song]} />
       <Shelf title="Recently played" songs={recent} />
       <Shelf title="From your library" songs={librarySongs} />

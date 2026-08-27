@@ -15,6 +15,7 @@ import { SyntheticAudioProvider } from "@/lib/audio/synthetic";
 import { LocalAudioProvider } from "@/lib/audio/local";
 import { takeLocalFile } from "@/lib/audio/local-file";
 import { jamendoId, isJamendoId } from "@/lib/jamendo/id";
+import { localTrack, localTrackExtras } from "@/data/tracks";
 import { appleMusic } from "@/lib/apple-music/service";
 import { parseLrc, buildLyrics } from "@/lib/lyrics/lrc";
 import { LyricsEngine } from "@/lib/lyrics/engine";
@@ -133,6 +134,22 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         sceneMeta = autoSceneMeta(dur);
         lyrics = { lines: [], synced: false, wordLevel: false, source: "none" };
         palette = FALLBACK_PALETTE;
+      } else if (localTrack(songId)) {
+        set({ loadingLabel: "LOADING TRACK" });
+        song = localTrack(songId)!;
+        const extras = localTrackExtras(songId);
+        provider = new LocalAudioProvider(() => song.previewUrl);
+        await provider.load(song);
+
+        set({ loadingLabel: "RETRIEVING LYRICS" });
+        lyrics = extras.lrcUrl
+          ? await fetchLocalLrc(extras.lrcUrl, song)
+          : await fetchRemoteLyrics(song);
+        const dur = provider.getSnapshot().duration || song.durationMs / 1000 || 210;
+        sceneMeta = autoSceneMeta(dur, lyrics.lines, extras.scene);
+        palette = song.artworkUrl
+          ? await extractPalette(song.artworkUrl).catch(() => FALLBACK_PALETTE)
+          : FALLBACK_PALETTE;
       } else if (isJamendo) {
         set({ loadingLabel: "LOADING TRACK" });
         const res = await fetch(`/api/jamendo/track/${jamendoId(songId)}`);
@@ -316,6 +333,21 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     });
   },
 }));
+
+async function fetchLocalLrc(url: string, song: Song): Promise<Lyrics> {
+  try {
+    const text = await fetch(url).then((r) => (r.ok ? r.text() : ""));
+    if (!text.trim()) return fetchRemoteLyrics(song);
+    const parsed = parseLrc(text);
+    const built = buildLyrics(parsed, {
+      source: "local",
+      songDuration: song.durationMs / 1000,
+    });
+    return built.lines.length ? built : fetchRemoteLyrics(song);
+  } catch {
+    return fetchRemoteLyrics(song);
+  }
+}
 
 async function fetchRemoteLyrics(song: Song): Promise<Lyrics> {
   try {

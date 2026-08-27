@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ExperienceRoot } from "@/components/experience/ExperienceRoot";
 import { DEMO_CONFIG, DEMO_SONG_ID } from "@/data/demo";
+import { localTrack } from "@/data/tracks";
 
 export async function generateMetadata({
   params,
@@ -12,6 +13,13 @@ export async function generateMetadata({
     return {
       title: `${DEMO_CONFIG.song.title} — ${DEMO_CONFIG.song.artistName}`,
       description: "The built-in LYRICSCAPE demo experience.",
+    };
+  }
+  const local = localTrack(songId);
+  if (local) {
+    return {
+      title: `${local.title} — ${local.artistName}`,
+      description: "An immersive cinematic lyrics experience.",
     };
   }
   return {

@@ -26,7 +26,8 @@ LYRICSCAPE plays audio from whichever of these is available, in priority order:
 | --- | --- | --- |
 | **Apple Music** (MusicKit) | paid Apple Developer account → `.env.local` (below) | full catalog, DRM stream |
 | **Jamendo** | free client ID at [devportal.jamendo.com](https://devportal.jamendo.com) → `JAMENDO_CLIENT_ID` in `.env.local` | ~600k Creative-Commons tracks, full-length legal streams |
-| **Local files** | none — always on | your own audio, picked from search or the home screen |
+| **Your tracks** | drop audio files in `public/tracks/` | a persistent local library; lyrics auto-fetched from LRCLIB |
+| **Local files** | none — always on | one-off: pick any audio file from search or the home screen |
 | **Demo** | none — always on | original *Afterlight*, generative Web Audio score |
 
 Only the Jamendo **Client ID** is needed (it is public — sent with every API
@@ -201,6 +202,25 @@ If WebGL is unavailable the experience swaps the `<Canvas>` for a gradient +
 position and the world moves through it.
 
 ---
+
+## Adding your own tracks
+
+Drop audio files (`mp3 · m4a · aac · ogg · opus · wav · flac`) into
+`public/tracks/`. `npm run tracks` (which also runs on every `npm run dev` /
+`npm run build`) reads their ID3 / Vorbis tags, extracts embedded cover art to
+`public/tracks/.covers/`, and (re)writes `public/tracks/manifest.json`.
+
+- A filename like `Artist - Title.mp3` is parsed for artist + title when tags
+  are missing; download-site cruft (`_`, `(mp3.pm)`, `[official video]`, …) is
+  stripped.
+- Time-synced lyrics come from **LRCLIB** by title + artist + duration.
+- Drop a sidecar `.lrc` with the **same base name** to override LRCLIB.
+- Hand edits to `title` / `artist` / `album` / `lrc` / `scene` in
+  `manifest.json` are preserved across regenerations (matched by `file`).
+- Optional per-track `"scene"`: `room · hallway · void · ocean · stars · smoke`.
+
+Audio files and extracted covers are git-ignored; `manifest.json` is committed.
+See `public/tracks/README.md`.
 
 ## Adding a demo song
 

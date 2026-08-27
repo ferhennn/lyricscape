@@ -4,8 +4,9 @@ import { create } from "zustand";
 import type { Song } from "@/types";
 import { appleMusic } from "@/lib/apple-music/service";
 import { DEMO_CONFIG } from "@/data/demo";
+import { searchLocalTracks } from "@/data/tracks";
 
-export type SearchSource = "apple-music" | "jamendo" | "demo";
+export type SearchSource = "apple-music" | "jamendo" | "local" | "demo";
 
 interface SearchStore {
   open: boolean;
@@ -64,31 +65,36 @@ export const useSearch = create<SearchStore>((set, get) => ({
     }
     set({ loading: true, error: null });
 
+    // The user's own tracks always match first, regardless of streaming source.
+    const local = searchLocalTracks(q);
     const apple = appleMusic.getStatus().configured || appleMusic.getStatus().authorized;
     try {
       if (apple) {
         const songs = await appleMusic.search(q);
         if (id !== seq) return;
-        set({ results: songs, loading: false, source: "apple-music" });
+        set({ results: [...local, ...songs], loading: false, source: "apple-music" });
         return;
       }
       if (await jamendoConfigured()) {
         const songs = await searchJamendo(q);
         if (id !== seq) return;
-        set({ results: songs, loading: false, source: "jamendo" });
+        set({ results: [...local, ...songs], loading: false, source: "jamendo" });
         return;
       }
-      // Demo mode — the built-in experience is the only catalog entry.
-      await new Promise((r) => setTimeout(r, 220));
+      await new Promise((r) => setTimeout(r, 200));
       if (id !== seq) return;
-      set({ results: [DEMO_CONFIG.song], loading: false, source: "demo" });
+      set({
+        results: [...local, DEMO_CONFIG.song],
+        loading: false,
+        source: local.length ? "local" : "demo",
+      });
     } catch (err) {
       if (id !== seq) return;
       set({
         loading: false,
         error: (err as Error).message || "Search failed.",
-        results: apple ? [] : [DEMO_CONFIG.song],
-        source: apple ? "apple-music" : "demo",
+        results: apple ? local : [...local, DEMO_CONFIG.song],
+        source: apple ? "apple-music" : local.length ? "local" : "demo",
       });
     }
   },

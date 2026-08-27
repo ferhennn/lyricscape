@@ -28,7 +28,11 @@ const SCENE_FOR: Record<SongSectionType, VisualSceneType> = {
   unknown: "void",
 };
 
-export function autoSceneMeta(durationSec: number, lyrics: LyricLine[] = []): SceneMeta {
+export function autoSceneMeta(
+  durationSec: number,
+  lyrics: LyricLine[] = [],
+  forceScene?: VisualSceneType,
+): SceneMeta {
   const total = Math.max(30, durationSec || 180);
   const sum = TEMPLATE.reduce((a, s) => a + s.weight, 0);
   let cursor = 0;
@@ -47,13 +51,13 @@ export function autoSceneMeta(durationSec: number, lyrics: LyricLine[] = []): Sc
       type: tpl.type,
       start,
       end,
-      scene: SCENE_FOR[tpl.type] ?? SCENE_CYCLE[i % SCENE_CYCLE.length],
+      scene: forceScene ?? SCENE_FOR[tpl.type] ?? SCENE_CYCLE[i % SCENE_CYCLE.length],
       intensity,
       label: tpl.type.replace("_", " ").toUpperCase(),
     };
   });
 
-  return { sections, defaultScene: "stars" };
+  return { sections, defaultScene: forceScene ?? "stars" };
 }
 
 function clamp01(n: number): number {
