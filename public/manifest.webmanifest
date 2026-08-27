@@ -1,0 +1,13 @@
+{
+  "name": "LYRICSCAPE",
+  "short_name": "LYRICSCAPE",
+  "description": "An immersive cinematic lyrics experience.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

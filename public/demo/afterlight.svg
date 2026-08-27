@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="62%" r="55%">
+      <stop offset="0%" stop-color="#e8b98f" stop-opacity="0.9"/>
+      <stop offset="28%" stop-color="#b9663f" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#2a1c2e" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#050505" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#070708"/>
+      <stop offset="55%" stop-color="#0c0a0d"/>
+      <stop offset="100%" stop-color="#151016"/>
+    </linearGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect width="600" height="600" fill="url(#sky)"/>
+  <circle cx="300" cy="372" r="230" fill="url(#glow)"/>
+  <rect x="0" y="372" width="600" height="1.4" fill="#e8b98f" opacity="0.5"/>
+  <rect x="0" y="372" width="600" height="90" fill="#e8b98f" opacity="0.04"/>
+  <g filter="url(#grain)"><rect width="600" height="600" fill="transparent"/></g>
+  <text x="44" y="536" font-family="Inter Tight, Helvetica Neue, Arial, sans-serif" font-size="46" font-weight="600" letter-spacing="-2" fill="#F5F5F5">AFTERLIGHT</text>
+  <text x="46" y="562" font-family="Inter Tight, Helvetica Neue, Arial, sans-serif" font-size="13" letter-spacing="4" fill="#777777">LYRICSCAPE</text>
+</svg>
