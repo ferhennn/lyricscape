@@ -43,7 +43,8 @@ void main(){
   float star = step(0.9982, n2(uv*vec2(uRes.x,uRes.y)*0.32));
   col += vec3(0.55,0.65,0.85) * star * (0.3 + 0.5*sin(uTime*0.8 + uv.x*60.0));
 
-  float swell = uLoud*0.5 + uEnergy*0.9 + uDrop*0.6;
+  float pulse = uPulse;
+  float swell = uLoud*0.5 + uEnergy*0.9 + uDrop*0.6 + pulse*0.5;
 
   const int LAYERS = 5;
   for(int i=0;i<LAYERS;i++){
@@ -79,6 +80,12 @@ void main(){
 
   // a single soft bloom across the whole sky on a chorus lift
   col += pal(0.6) * uDrop * 0.12;
+
+  // every beat: a band of light that rises through the sky in time with it
+  float band = exp(-pow((uv.y - mix(0.1, 0.95, uPhase)) * 5.0, 2.0));
+  col += pal(0.35 + uBright*0.3) * band * pulse * 0.16;
+  // and a whole-frame lift so the beat always reads
+  col += pal(0.5) * pulse * 0.05;
 
   col = 1.0 - exp(-col * 1.6);
   col = pow(col, vec3(0.9));

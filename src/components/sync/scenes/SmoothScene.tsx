@@ -45,8 +45,9 @@ void main(){
   float rate = mix(0.10, 0.028, calm) * (0.7 + uDynamics*0.9);
   float t = uTime * rate;
 
-  // breathing zoom on the long swells
-  float breathe = 1.0 - (uLoud*0.06 + uDrop*0.05);
+  // breathing zoom on the long swells + a soft push on every beat
+  float pulse = uPulse;
+  float breathe = 1.0 - (uLoud*0.06 + uDrop*0.05 + pulse*0.035);
   p *= breathe;
 
   // two-stage domain warp for that liquid-silk fold
@@ -63,6 +64,10 @@ void main(){
   // very soft waveform ripple, wide and slow
   f += (wave(fract(uv.x*0.5 + t*0.1)) - 0.0) * 0.05 * uMid;
 
+  // each beat sends one slow ring through the flow field
+  float rr = length(p);
+  f += sin(rr*7.0 - uTime*6.0) * pulse * 0.06;
+
   float shade = f + (uv.y - 0.5)*0.25 + uEnergy*0.15;
   vec3 col = ramp(shade + uBright*0.15);
 
@@ -73,6 +78,9 @@ void main(){
   // chorus wash — a slow diagonal sweep of light
   float sweep = smoothstep(0.9, 0.0, abs(dot(uv, vec2(0.7,0.7)) - fract(uTime*0.05)*1.4));
   col += ramp(0.8) * sweep * uDrop * 0.25;
+
+  // a gentle bloom of light from the centre on every beat
+  col += ramp(shade + 0.35) * pulse * (0.10 + 0.14 * exp(-rr*rr*3.0));
 
   // desaturate + settle in the calmest passages
   float lum = dot(col, vec3(0.299,0.587,0.114));
