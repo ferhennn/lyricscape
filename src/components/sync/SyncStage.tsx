@@ -10,9 +10,9 @@ import { SoothingScene } from "./scenes/SoothingScene";
 import { PopScene } from "./scenes/PopScene";
 
 const SCENES = [
-  { slug: "smooth", label: "Smooth", hint: "calm, relaxed listening" },
-  { slug: "soothing", label: "Soothing", hint: "ambient & acoustic" },
-  { slug: "pop", label: "Pop", hint: "pop, electronic, hip-hop" },
+  { slug: "smooth", label: "Smooth" },
+  { slug: "soothing", label: "Soothing" },
+  { slug: "pop", label: "Pop" },
 ] as const;
 
 type Slug = (typeof SCENES)[number]["slug"];
@@ -130,16 +130,13 @@ export function SyncStage({ children }: { children: ReactNode }) {
               <Link
                 key={s.slug}
                 href={`/sync/${s.slug}`}
-                className={`group rounded-full border px-4 py-2 font-mono text-xs transition ${
+                className={`rounded-full border px-4 py-2 font-mono text-xs transition ${
                   on
                     ? "border-line bg-ink/10 text-ink"
                     : "border-transparent text-muted hover:text-ink"
                 }`}
               >
                 {s.label}
-                <span className="ml-2 hidden text-[10px] text-muted group-hover:inline">
-                  {s.hint}
-                </span>
               </Link>
             );
           })}
