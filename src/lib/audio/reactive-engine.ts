@@ -131,13 +131,22 @@ export class ReactiveEngine {
 
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        // Nudge the picker toward "Entire screen" — sharing a whole screen
+        // shows only a small floating widget, not Chrome's docked tab bar.
+        video: { displaySurface: "monitor" },
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
         },
-      });
+        // non-standard but widely supported hints
+        ...({
+          systemAudio: "include",
+          selfBrowserSurface: "exclude",
+          surfaceSwitching: "exclude",
+          monitorTypeSurfaces: "include",
+        } as Record<string, string>),
+      } as DisplayMediaStreamOptions);
       if (stream.getAudioTracks().length === 0) {
         stream.getTracks().forEach((t) => t.stop());
         throw new Error("no-audio-track");

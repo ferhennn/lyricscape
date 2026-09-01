@@ -86,9 +86,10 @@ export function SyncStage({ children }: { children: ReactNode }) {
             <p className="label mb-3">Audio sync</p>
             <h2 className="text-display mb-4 text-3xl">Feed it the sound.</h2>
             <p className="meta mb-6 text-muted">
-              Pick a browser tab and tick <em>Share tab audio</em>, or choose your
-              whole screen and tick <em>Share system audio</em>. Nothing is
-              recorded or uploaded — it stays in this tab.
+              Choose <em>Entire Screen</em> and tick <em>Share system audio</em> —
+              that avoids Chrome&apos;s docked tab-sharing bar. Sharing a single
+              tab works too, but the bar then sits on that tab. Nothing is
+              recorded or uploaded — audio stays in this tab.
             </p>
             <button
               onClick={() => void start()}
