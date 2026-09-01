@@ -5,20 +5,20 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAudio } from "./AudioProvider";
-import { NebulaScene } from "./scenes/NebulaScene";
-import { TunnelScene } from "./scenes/TunnelScene";
-import { LiquidScene } from "./scenes/LiquidScene";
+import { SmoothScene } from "./scenes/SmoothScene";
+import { SoothingScene } from "./scenes/SoothingScene";
+import { PopScene } from "./scenes/PopScene";
 
 const SCENES = [
-  { slug: "nebula", label: "Nebula", hint: "particle gas · bass swell" },
-  { slug: "tunnel", label: "Tunnel", hint: "waveform corridor · beat rings" },
-  { slug: "liquid", label: "Liquid", hint: "metaball blob · skin ripple" },
+  { slug: "smooth", label: "Smooth", hint: "calm, relaxed listening" },
+  { slug: "soothing", label: "Soothing", hint: "ambient & acoustic" },
+  { slug: "pop", label: "Pop", hint: "pop, electronic, hip-hop" },
 ] as const;
 
 type Slug = (typeof SCENES)[number]["slug"];
 
 function sceneFor(pathname: string): Slug | null {
-  const m = pathname.match(/\/sync\/(nebula|tunnel|liquid)/);
+  const m = pathname.match(/\/sync\/(smooth|soothing|pop)/);
   return (m?.[1] as Slug) ?? null;
 }
 
@@ -34,11 +34,18 @@ export function SyncStage({ children }: { children: ReactNode }) {
     if (active && prev.current && active !== prev.current) {
       setVeil(true);
       const t = setTimeout(() => setVeil(false), 420);
+      prev.current = active;
       return () => clearTimeout(t);
     }
     prev.current = active;
   }, [active]);
 
+  const [isFs, setIsFs] = useState(false);
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen().catch(() => {});
@@ -59,9 +66,9 @@ export function SyncStage({ children }: { children: ReactNode }) {
             dpr={[1, 1.75]}
             camera={{ position: [0, 0, 1], fov: 50 }}
           >
-            {active === "nebula" && <NebulaScene key="nebula" />}
-            {active === "tunnel" && <TunnelScene key="tunnel" />}
-            {active === "liquid" && <LiquidScene key="liquid" />}
+            {active === "smooth" && <SmoothScene key="smooth" />}
+            {active === "soothing" && <SoothingScene key="soothing" />}
+            {active === "pop" && <PopScene key="pop" />}
           </Canvas>
         </div>
       )}
@@ -108,10 +115,9 @@ export function SyncStage({ children }: { children: ReactNode }) {
           )}
           <button
             onClick={toggleFullscreen}
-            className="meta text-muted hover:text-ink"
-            aria-label="Toggle fullscreen"
+            className="rounded-full border border-line px-3 py-1.5 font-mono text-xs text-muted transition hover:text-ink"
           >
-            ⤢
+            {isFs ? "⤡ Exit fullscreen" : "⤢ Fullscreen"}
           </button>
         </div>
       </header>

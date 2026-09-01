@@ -9,19 +9,22 @@ export const metadata: Metadata = {
 
 const SCENES = [
   {
-    slug: "nebula",
-    label: "Nebula",
-    copy: "Domain-warped gas clouds drifting through deep space. Bass swells the density, treble cools the palette, every kick blooms the core.",
+    slug: "smooth",
+    label: "Smooth",
+    tag: "for calm, relaxed listening",
+    copy: "Slow-flowing fields of colour, like ink in water. Nothing snaps to the beat — the flow follows the section energy, the palette warms with the mix, and a chorus opens a soft wash of light.",
   },
   {
-    slug: "tunnel",
-    label: "Tunnel",
-    copy: "Flight through an endless faceted corridor. The live waveform bends the walls, bass drives the speed, beats fire rings down the tube.",
+    slug: "soothing",
+    label: "Soothing",
+    tag: "for ambient & acoustic",
+    copy: "Slow aurora curtains. Motion winds down as the track gets sparser, the veil rises on the swells, and a lift sends one gentle wave of brightness through the sky. Beats are barely felt.",
   },
   {
-    slug: "liquid",
-    label: "Liquid",
-    copy: "A raymarched metaball blob breathing in place. Bass inflates it, the spectrum ripples its skin, a beat sends a shell outward.",
+    slug: "pop",
+    label: "Pop",
+    tag: "for pop, electronic, hip-hop",
+    copy: "Loud and beat-locked. The core punches on every kick, a drop kicks the whole frame in with a shockwave and a palette flip, treble throws sparks, and the hue rides the brightness of the mix.",
   },
 ] as const;
 
@@ -31,14 +34,15 @@ export default function SyncIndex() {
       <p className="label mb-4">Audio → light</p>
       <h1 className="text-display mb-5 text-5xl sm:text-6xl">Sync</h1>
       <p className="meta mb-3 max-w-lg text-muted">
-        Three shader scenes wired to a live analyser. Point them at any tab or at
-        your whole system audio and they move with the music — no lyrics, no
-        track data, pure reaction.
+        Three shader scenes wired to a live analyser that tracks loudness,
+        dynamics, brightness and drops — not just raw volume. Point them at any
+        tab or at your whole system audio and they move with the music. No
+        lyrics, no track data, pure reaction.
       </p>
       <p className="meta mb-12 max-w-lg text-muted">
-        Best in Chrome or Edge (real system audio). Elsewhere it falls back to the
-        microphone. The audio session carries across all three scenes — grant it
-        once.
+        Pick the one that fits what you&apos;re playing. Best in Chrome or Edge
+        (real system audio); elsewhere it falls back to the microphone. The audio
+        session carries across all three — grant it once.
       </p>
 
       <ul className="space-y-3">
@@ -49,7 +53,10 @@ export default function SyncIndex() {
               className="group block rounded-2xl border border-line p-5 transition hover:bg-ink/5"
             >
               <div className="mb-1 flex items-baseline justify-between">
-                <span className="text-display text-2xl">{s.label}</span>
+                <span className="text-display text-2xl">
+                  {s.label}
+                  <span className="label ml-3 align-middle">{s.tag}</span>
+                </span>
                 <span className="label transition group-hover:text-ink">
                   open ▸
                 </span>
