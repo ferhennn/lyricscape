@@ -1,96 +1,253 @@
 "use client";
 
-import { FullscreenShader } from "../FullscreenShader";
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { PerspectiveCamera } from "@react-three/drei";
+import {
+  EffectComposer,
+  Bloom,
+  ChromaticAberration,
+  Vignette,
+  Noise,
+} from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
+import * as THREE from "three";
+import { useAudio } from "../AudioProvider";
 
-const FRAG = /* glsl */ `
-// ── Pop ────────────────────────────────────────────────────────────────────
-// Loud, saturated, beat-locked — for pop, electronic, hip-hop. Every beat is
-// driven by uPulse (a tempo-locked, latency-compensated pulse that never
-// misses a beat) reinforced by the raw onset uBeat: the core punches, a ring
-// fires outward, and the whole frame flashes. A drop (uDrop) kicks the frame
-// in with a shockwave and a palette flip; treble throws sparks; the hue rides
-// the brightness of the mix (uBright).
+/**
+ * ── Pop ───────────────────────────────────────────────────────────────────
+ * A resonator: a ring of light bars stood up by the spectrum, around a core
+ * that spikes on the beat, shot through heavy bloom and chromatic aberration.
+ * Built for pop / electronic / hip-hop — every beat kicks the camera in,
+ * punches the bars up off a floor and notches the ring around; a drop flips
+ * the palette, blows out the bloom and shears the whole frame with colour.
+ */
 
-vec3 hue(float h){
-  return 0.55 + 0.45*cos(6.2831*(h + vec3(0.0, 0.33, 0.67)));
+const COUNT = 72;
+const RADIUS = 4.6;
+
+// compact 3D value noise for the core displacement
+const NOISE = /* glsl */ `
+vec3 h3(vec3 p){
+  p = vec3(dot(p,vec3(127.1,311.7,74.7)),
+           dot(p,vec3(269.5,183.3,246.1)),
+           dot(p,vec3(113.5,271.9,124.6)));
+  return fract(sin(p)*43758.5453123);
 }
-
-float n2(vec2 p){
-  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
-  float a=fract(sin(dot(i,vec2(127.1,311.7)))*43758.5);
-  float b=fract(sin(dot(i+vec2(1,0),vec2(127.1,311.7)))*43758.5);
-  float c=fract(sin(dot(i+vec2(0,1),vec2(127.1,311.7)))*43758.5);
-  float d=fract(sin(dot(i+vec2(1,1),vec2(127.1,311.7)))*43758.5);
-  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+float n3(vec3 p){
+  vec3 i = floor(p); vec3 f = fract(p);
+  vec3 u = f*f*(3.0-2.0*f);
+  float n000 = dot(h3(i+vec3(0.0,0.0,0.0))-0.5, f-vec3(0.0,0.0,0.0));
+  float n100 = dot(h3(i+vec3(1.0,0.0,0.0))-0.5, f-vec3(1.0,0.0,0.0));
+  float n010 = dot(h3(i+vec3(0.0,1.0,0.0))-0.5, f-vec3(0.0,1.0,0.0));
+  float n110 = dot(h3(i+vec3(1.0,1.0,0.0))-0.5, f-vec3(1.0,1.0,0.0));
+  float n001 = dot(h3(i+vec3(0.0,0.0,1.0))-0.5, f-vec3(0.0,0.0,1.0));
+  float n101 = dot(h3(i+vec3(1.0,0.0,1.0))-0.5, f-vec3(1.0,0.0,1.0));
+  float n011 = dot(h3(i+vec3(0.0,1.0,1.0))-0.5, f-vec3(0.0,1.0,1.0));
+  float n111 = dot(h3(i+vec3(1.0,1.0,1.0))-0.5, f-vec3(1.0,1.0,1.0));
+  return 0.5 + mix(mix(mix(n000,n100,u.x), mix(n010,n110,u.x), u.y),
+                   mix(mix(n001,n101,u.x), mix(n011,n111,u.x), u.y), u.z);
 }
+float fbm3(vec3 p){ float v=0.0, a=0.5; for(int i=0;i<4;i++){ v+=a*n3(p); p*=2.03; a*=0.5; } return v; }
+`;
 
+const CORE_VERT = /* glsl */ `
+uniform float uTime, uBass, uPulse, uSpike;
+varying float vD;
+varying vec3 vN;
+${NOISE}
 void main(){
-  vec2 uv = vUv;
-  vec2 p = (uv - 0.5) * vec2(uRes.x/uRes.y, 1.0);
-
-  // the beat: grid-locked pulse, floored by the raw onset so accents still snap
-  float hit = max(uPulse, uBeat);
-  float hit2 = hit*hit;                       // punchier curve
-
-  // beat punch-in + drop kick-in
-  p *= 1.0 - hit*0.13 - uDrop*0.14;
-  // spin, faster on louder sections, a kick of rotation on every beat
-  p *= rot(uTime*(0.12 + uDynamics*0.5) + uDrop*1.5 + hit2*0.25);
-
-  float rad = length(p);
-  float ang = atan(p.y, p.x);
-
-  float baseHue = uBright*0.6 + uTime*0.03;
-  // palette flips hard on a drop
-  baseHue += step(0.5, uDrop) * 0.5;
-
-  vec3 col = vec3(0.0);
-
-  // ── kaleidoscopic petals ────────────────────────────────────────────
-  float petals = 6.0 + floor(uDynamics*6.0);
-  float ka = abs(fract(ang/6.2831*petals + uTime*0.05) - 0.5);
-  float arm = smoothstep(0.42, 0.0, ka) ;
-  float armLen = 0.33 + uBass*0.45 + hit2*0.30 + uDrop*0.4;
-  float petal = arm * smoothstep(armLen, armLen*0.2, rad);
-  petal *= 0.6 + 0.6*n2(vec2(ang*3.0, rad*8.0 - uTime*3.0));
-  col += hue(baseHue + rad*0.6) * petal * (1.0 + uLevel*1.5 + hit*0.8);
-
-  // ── core sun — punches on every beat ───────────────────────────────
-  float core = 0.14 + uBass*0.09 + hit2*0.18;
-  float sun = smoothstep(core, 0.0, rad);
-  col += hue(baseHue + 0.15) * sun * (1.4 + hit*4.0 + uDrop*2.0);
-  col += vec3(1.0) * smoothstep(core*0.4, 0.0, rad) * (0.4 + hit*1.5);
-
-  // ── waveform ring around the core ──────────────────────────────────
-  float wr = 0.30 + uEnergy*0.10;
-  float w = wave(fract(ang/6.2831 + uTime*0.02)) * (0.05 + uMid*0.12);
-  float ring = exp(-pow((rad - (wr + w)) * 26.0, 2.0));
-  col += hue(baseHue + 0.5) * ring * (1.0 + hit*3.0);
-
-  // ── a bright ring fired outward on EVERY beat ─────────────────────
-  float bw = exp(-pow((rad - (1.0 - hit)*1.5) * 6.0, 2.0)) * hit;
-  float dw = exp(-pow((rad - (1.0 - uDrop)*1.9) * 4.0, 2.0)) * uDrop;
-  col += hue(baseHue + 0.7) * (bw*2.2 + dw*2.2);
-
-  // ── treble sparks ────────────────────────────────────────────────
-  float sp = n2(p*22.0 + uTime*6.0);
-  sp = pow(sp, 8.0) * step(0.5, spec(rad*0.7));
-  col += vec3(1.0,0.95,0.9) * sp * uTreble * 3.0;
-
-  // full-frame flash — unmistakable on every beat, bigger on a drop
-  col += hue(baseHue) * uDrop * 0.4;
-  col += vec3(1.0) * hit2 * 0.22;
-
-  // vignette so the middle pops
-  col *= 1.0 - dot(p,p)*0.35;
-
-  col = 1.0 - exp(-col*1.7);
-  col = pow(col, vec3(0.82));   // punchy contrast
-  col *= uFade;
-  gl_FragColor = vec4(col, 1.0);
+  float n = fbm3(normalize(position) * 2.4 + uTime * 0.5);
+  float d = (n - 0.5) * (0.35 + uBass * 0.9 + uPulse * 0.7) + uSpike * n;
+  vec3 p = position + normal * d;
+  vD = d;
+  vN = normalMatrix * normal;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }
 `;
 
+const CORE_FRAG = /* glsl */ `
+precision highp float;
+uniform vec3 uColA, uColB;
+uniform float uPulse, uFade;
+varying float vD;
+varying vec3 vN;
+void main(){
+  float rim = pow(1.0 - abs(normalize(vN).z), 2.0);
+  vec3 col = mix(uColA, uColB, clamp(vD * 2.0 + 0.5, 0.0, 1.0));
+  col += rim * 1.5;
+  col += uPulse * 0.6;
+  gl_FragColor = vec4(col * uFade, 1.0);
+}
+`;
+
+function makeBarsGeo() {
+  const geo = new THREE.BoxGeometry(0.16, 1, 0.16);
+  geo.translate(0, 0.5, 0); // grow upward from the base
+  return geo;
+}
+
+function makeCoreUniforms() {
+  return {
+    uTime: { value: 0 },
+    uBass: { value: 0 },
+    uPulse: { value: 0 },
+    uSpike: { value: 0 },
+    uFade: { value: 0 },
+    uColA: { value: new THREE.Color("#ff2d6f") },
+    uColB: { value: new THREE.Color("#37e6ff") },
+  };
+}
+
 export function PopScene() {
-  return <FullscreenShader frag={FRAG} />;
+  const { bandsRef } = useAudio();
+  const camRef = useRef<THREE.PerspectiveCamera>(null);
+  const ringRef = useRef<THREE.Group>(null);
+  const barsRef = useRef<THREE.InstancedMesh>(null);
+  const coreMatRef = useRef<THREE.ShaderMaterial>(null);
+  const caRef = useRef<{ offset: THREE.Vector2 } | null>(null);
+  const bloomRef = useRef<{ intensity: number } | null>(null);
+
+  const acc = useRef({ spin: 0, hue: 0, t: 0, colorInit: false });
+  const heights = useRef(new Float32Array(COUNT));
+
+  const barsGeo = useMemo(() => makeBarsGeo(), []);
+  const barsMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ toneMapped: false }),
+    [],
+  );
+  const coreUniforms = useMemo(() => makeCoreUniforms(), []);
+
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(0.05, dtRaw);
+    const a0 = acc.current;
+    a0.t += dt;
+    const b = bandsRef.current;
+    const hit = Math.max(b.pulse, b.beat);
+    const bars = barsRef.current;
+    const h = heights.current;
+
+    // ── bars ────────────────────────────────────────────────────────────
+    if (bars) {
+      const spec = b.spectrum;
+      const floor = 0.15 + hit * 0.9 + b.drop * 0.6;
+      a0.spin += dt * (0.15 + b.dynamics * 0.6) + hit * 0.04;
+      a0.hue += dt * 0.03 + b.drop * 0.1;
+      const dummy = new THREE.Object3D();
+      const col = new THREE.Color();
+      for (let i = 0; i < COUNT; i++) {
+        const bin = spec[Math.round((i / COUNT) * (spec.length - 1))] || 0;
+        const target = 0.2 + Math.pow(bin, 0.75) * 3.4 + floor;
+        h[i] += (target - h[i]) * 0.3;
+        const a = (i / COUNT) * Math.PI * 2 + a0.spin;
+        dummy.position.set(Math.cos(a) * RADIUS, 0, Math.sin(a) * RADIUS);
+        dummy.rotation.y = -a;
+        dummy.scale.set(1, h[i], 1);
+        dummy.updateMatrix();
+        bars.setMatrixAt(i, dummy.matrix);
+        col.setHSL((i / COUNT + a0.hue + b.drop * 0.5) % 1, 0.85, 0.5 + hit * 0.25);
+        bars.setColorAt(i, col);
+      }
+      bars.instanceMatrix.needsUpdate = true;
+      if (bars.instanceColor) bars.instanceColor.needsUpdate = true;
+    }
+
+    if (ringRef.current) {
+      ringRef.current.rotation.z = Math.sin(a0.t * 0.1) * 0.05;
+      ringRef.current.position.y = -1.1 + hit * 0.15;
+    }
+
+    // ── core ────────────────────────────────────────────────────────────
+    const cm = coreMatRef.current;
+    if (cm) {
+      const cu = cm.uniforms;
+      cu.uTime.value = a0.t;
+      cu.uBass.value = b.bass;
+      cu.uPulse.value = hit;
+      cu.uSpike.value += (hit * 0.9 - cu.uSpike.value) * 0.4;
+      cu.uFade.value = Math.min(1, cu.uFade.value + dt / 1.1);
+      (cu.uColA.value as THREE.Color).setHSL(
+        (0.92 + b.brightness * 0.1 + b.drop * 0.4) % 1,
+        0.85,
+        0.55,
+      );
+      (cu.uColB.value as THREE.Color).setHSL(
+        (0.52 + b.brightness * 0.15 + b.drop * 0.4) % 1,
+        0.9,
+        0.6,
+      );
+    }
+
+    // ── camera: orbit + beat punch-in + drop dolly ──────────────────────
+    if (camRef.current) {
+      const cam = camRef.current;
+      const orb = a0.t * 0.1;
+      const dist = 13 - hit * 0.9 - b.drop * 2.0;
+      cam.position.set(
+        Math.cos(orb) * dist,
+        4.2 + Math.sin(a0.t * 0.15) * 0.8,
+        Math.sin(orb) * dist,
+      );
+      cam.lookAt(0, 1.2, 0);
+      cam.fov = 46 - hit * 4 - b.drop * 3;
+      cam.updateProjectionMatrix();
+    }
+
+    // ── post ────────────────────────────────────────────────────────────
+    if (caRef.current) {
+      const amt = 0.0006 + hit * 0.002 + b.drop * 0.006;
+      caRef.current.offset.set(amt, amt);
+    }
+    if (bloomRef.current) {
+      bloomRef.current.intensity = 0.9 + hit * 0.8 + b.drop * 1.6;
+    }
+  });
+
+  return (
+    <>
+      <color attach="background" args={["#050308"]} />
+      <PerspectiveCamera ref={camRef} makeDefault fov={46} position={[0, 4.2, 13]} />
+
+      <group ref={ringRef} position={[0, -1.1, 0]}>
+        <instancedMesh
+          ref={barsRef}
+          args={[barsGeo, barsMat, COUNT]}
+          frustumCulled={false}
+        />
+      </group>
+
+      <mesh>
+        <icosahedronGeometry args={[1.35, 4]} />
+        <shaderMaterial
+          ref={coreMatRef}
+          vertexShader={CORE_VERT}
+          fragmentShader={CORE_FRAG}
+          uniforms={coreUniforms}
+          wireframe
+          transparent
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
+      <EffectComposer>
+        <Bloom
+          ref={bloomRef as never}
+          intensity={1.1}
+          luminanceThreshold={0.2}
+          luminanceSmoothing={0.9}
+          mipmapBlur
+        />
+        <ChromaticAberration
+          ref={caRef as never}
+          blendFunction={BlendFunction.NORMAL}
+          offset={new THREE.Vector2(0.0006, 0.0006)}
+          radialModulation={false}
+          modulationOffset={0}
+        />
+        <Noise opacity={0.035} blendFunction={BlendFunction.OVERLAY} />
+        <Vignette eskil={false} offset={0.15} darkness={0.85} />
+      </EffectComposer>
+    </>
+  );
 }
