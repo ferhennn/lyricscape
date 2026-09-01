@@ -73,6 +73,9 @@ export function Landing() {
       >
         <span className="label tracking-[0.34em]! text-ink/80">LYRICSCAPE</span>
         <nav className="flex items-center gap-6">
+          <Link href="/sync" className="label hover:text-ink/90">
+            Sync
+          </Link>
           <Link href="/about" className="label hover:text-ink/90">
             About
           </Link>
