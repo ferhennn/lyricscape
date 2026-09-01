@@ -40,6 +40,11 @@ export function makeReactiveUniforms() {
     uLevel: { value: 0 },
     uEnergy: { value: 0 },
     uBeat: { value: 0 },
+    uLoud: { value: 0 }, // auto-gained loudness
+    uDynamics: { value: 0.5 }, // section energy: <0.5 quiet, >0.5 loud
+    uDrop: { value: 0 }, // chorus / drop hit
+    uBright: { value: 0.5 }, // spectral centroid
+    uCalm: { value: 1 }, // 1 = sparse / gentle passage
     uFade: { value: 0 }, // 0 → 1 scene entrance / crossfade
     uRes: { value: new THREE.Vector2(1, 1) },
     uWave: { value: waveTex },
@@ -60,6 +65,11 @@ export function pushReactiveUniforms(
   u.uLevel.value = bands.level;
   u.uEnergy.value = bands.energy;
   u.uBeat.value = bands.beat;
+  u.uLoud.value = bands.loudNorm;
+  u.uDynamics.value = bands.dynamics;
+  u.uDrop.value = bands.drop;
+  u.uBright.value = bands.brightness;
+  u.uCalm.value = bands.calm;
 
   const wave = u.uWave.value as THREE.DataTexture;
   (wave.image.data as Float32Array).set(bands.waveform);
@@ -73,6 +83,7 @@ export function pushReactiveUniforms(
 /** GLSL helpers shared by the fragment shaders. */
 export const REACTIVE_GLSL = /* glsl */ `
 uniform float uTime, uBass, uMid, uTreble, uLevel, uEnergy, uBeat, uFade;
+uniform float uLoud, uDynamics, uDrop, uBright, uCalm;
 uniform vec2 uRes;
 uniform sampler2D uWave, uSpec;
 
