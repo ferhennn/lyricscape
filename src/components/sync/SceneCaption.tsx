@@ -12,10 +12,9 @@ export function SceneCaption({
 }) {
   const [shown, setShown] = useState(true);
   useEffect(() => {
-    setShown(true);
     const t = setTimeout(() => setShown(false), 3200);
     return () => clearTimeout(t);
-  }, [title]);
+  }, []);
 
   return (
     <div

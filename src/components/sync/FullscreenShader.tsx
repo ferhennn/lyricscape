@@ -20,40 +20,56 @@ void main(){
 }
 `;
 
+type SceneUniforms = ReactiveUniforms & Record<string, THREE.IUniform>;
+
 type Props = {
   /** Fragment shader body. Must define `void main()` and may use REACTIVE_GLSL helpers. */
   frag: string;
   /** Extra uniforms merged into the reactive block. */
   uniforms?: Record<string, THREE.IUniform>;
   /** Called every frame after reactive uniforms are pushed. */
-  onFrame?: (u: ReactiveUniforms & Record<string, THREE.IUniform>, dt: number) => void;
+  onFrame?: (u: SceneUniforms, dt: number) => void;
 };
 
-export function FullscreenShader({ frag, uniforms, onFrame }: Props) {
+export function FullscreenShader({ frag, uniforms: extra, onFrame }: Props) {
   const size = useThree((s) => s.size);
   const { bandsRef } = useAudio();
   const matRef = useRef<THREE.ShaderMaterial>(null);
 
-  const uni = useMemo(() => {
-    return { ...makeReactiveUniforms(), ...(uniforms ?? {}) } as ReactiveUniforms &
-      Record<string, THREE.IUniform>;
+  // Created once. Only ever mutated later through `matRef`, never here.
+  const uniforms = useMemo(
+    () => ({ ...makeReactiveUniforms(), ...(extra ?? {}) }) as SceneUniforms,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    uni.uRes.value.set(size.width, size.height);
-  }, [size, uni]);
+    [],
+  );
 
   const fragment = useMemo(
     () => `precision highp float;\nvarying vec2 vUv;\n${REACTIVE_GLSL}\n${frag}`,
     [frag],
   );
 
+  useEffect(() => {
+    const u = matRef.current?.uniforms as SceneUniforms | undefined;
+    u?.uRes.value.set(size.width, size.height);
+  }, [size]);
+
+  useEffect(() => {
+    const mat = matRef.current;
+    return () => {
+      const u = mat?.uniforms as SceneUniforms | undefined;
+      (u?.uWave.value as THREE.DataTexture | undefined)?.dispose();
+      (u?.uSpec.value as THREE.DataTexture | undefined)?.dispose();
+    };
+  }, []);
+
   useFrame((_, dt) => {
+    const mat = matRef.current;
+    if (!mat) return;
+    const u = mat.uniforms as SceneUniforms;
     const bands = bandsRef.current;
-    pushReactiveUniforms(uni, bands, bands.time);
-    uni.uFade.value = Math.min(1, uni.uFade.value + dt / 1.1);
-    onFrame?.(uni, dt);
+    pushReactiveUniforms(u, bands, bands.time);
+    u.uFade.value = Math.min(1, u.uFade.value + dt / 1.1);
+    onFrame?.(u, dt);
   });
 
   return (
@@ -62,7 +78,7 @@ export function FullscreenShader({ frag, uniforms, onFrame }: Props) {
         ref={matRef}
         vertexShader={VERT}
         fragmentShader={fragment}
-        uniforms={uni}
+        uniforms={uniforms}
         depthTest={false}
         depthWrite={false}
       />
