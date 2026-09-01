@@ -40,6 +40,8 @@ export function makeReactiveUniforms() {
     uLevel: { value: 0 },
     uEnergy: { value: 0 },
     uBeat: { value: 0 },
+    uPulse: { value: 0 }, // tempo-locked "every beat visible" pulse
+    uPhase: { value: 0 }, // 0..1 across the current beat
     uLoud: { value: 0 }, // auto-gained loudness
     uDynamics: { value: 0.5 }, // section energy: <0.5 quiet, >0.5 loud
     uDrop: { value: 0 }, // chorus / drop hit
@@ -65,6 +67,8 @@ export function pushReactiveUniforms(
   u.uLevel.value = bands.level;
   u.uEnergy.value = bands.energy;
   u.uBeat.value = bands.beat;
+  u.uPulse.value = bands.pulse;
+  u.uPhase.value = bands.beatPhase;
   u.uLoud.value = bands.loudNorm;
   u.uDynamics.value = bands.dynamics;
   u.uDrop.value = bands.drop;
@@ -83,7 +87,7 @@ export function pushReactiveUniforms(
 /** GLSL helpers shared by the fragment shaders. */
 export const REACTIVE_GLSL = /* glsl */ `
 uniform float uTime, uBass, uMid, uTreble, uLevel, uEnergy, uBeat, uFade;
-uniform float uLoud, uDynamics, uDrop, uBright, uCalm;
+uniform float uPulse, uPhase, uLoud, uDynamics, uDrop, uBright, uCalm;
 uniform vec2 uRes;
 uniform sampler2D uWave, uSpec;
 

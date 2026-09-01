@@ -23,8 +23,17 @@ export type Bands = {
   level: number;
   /** slow-smoothed loudness, 0..1 — good for ambient drift */
   energy: number;
-  /** transient pulse that spikes to 1 on a kick and decays */
+  /** raw transient — spikes to 1 the frame a kick is detected, then decays.
+   *  Use for accents / sparkle. */
   beat: number;
+  /** the one to drive "every beat is visible" motion. Combines the detected
+   *  onset with a tempo-locked, latency-compensated grid pulse, so it keeps a
+   *  steady visible cadence even when a kick is buried in the mix. 0..1 */
+  pulse: number;
+  /** sawtooth 0→1 across the current beat, 0 exactly on the (predicted) beat. */
+  beatPhase: number;
+  /** estimated tempo, 0 until locked. */
+  bpm: number;
 
   // ── "smart" dynamics ─────────────────────────────────────────────────────
   /** loudness auto-gained against a slow running peak, 0..1 — quiet songs
@@ -58,6 +67,9 @@ export function makeBands(): Bands {
     level: 0,
     energy: 0,
     beat: 0,
+    pulse: 0,
+    beatPhase: 0,
+    bpm: 0,
     loudNorm: 0,
     dynamics: 0.5,
     drop: 0,
@@ -71,6 +83,10 @@ export function makeBands(): Bands {
 
 const HISTORY = 90; // ~1.5s at 60fps — local average for beat detection
 
+// How far the audio graph + display pipeline runs behind what you hear.
+// The grid pulse is nudged this far ahead so the visual hit lands on the beat.
+const LATENCY_MS = 75;
+
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 export class ReactiveEngine {
@@ -78,6 +94,9 @@ export class ReactiveEngine {
 
   private ctx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  /** short, unsmoothed FFT purely for transient / onset detection. */
+  private onset: AnalyserNode | null = null;
+  private onsetFreq = new Uint8Array(0);
   private stream: MediaStream | null = null;
   private raf = 0;
   private freq = new Uint8Array(0);
@@ -87,6 +106,14 @@ export class ReactiveEngine {
   private beatCooldown = 0;
   private prevBass = 0;
   private onEnded: (() => void) | null = null;
+
+  // tempo tracking → phase-locked, latency-compensated beat grid
+  private lastLoopMs = 0;
+  private lastBeatMs = 0;
+  private beatIntervals: number[] = [];
+  private beatInterval = 0; // ms between beats, 0 until locked
+  private tempoConf = 0; // 0..1 how trustworthy the lock is
+  private phaseClock = 0; // ms elapsed inside the current beat
 
   // running envelopes for the smart signals
   private loudPeak = 0.15; // slow-decaying loudness ceiling for auto-gain
@@ -141,20 +168,30 @@ export class ReactiveEngine {
       window.AudioContext ??
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext;
-    this.ctx = new AC();
+    this.ctx = new AC({ latencyHint: "interactive" });
     await this.ctx.resume();
 
     const src = this.ctx.createMediaStreamSource(stream);
+
     const analyser = this.ctx.createAnalyser();
     analyser.fftSize = 2048;
-    // Low smoothing keeps transients intact so kicks are actually detectable.
     analyser.smoothingTimeConstant = 0.45;
     src.connect(analyser);
     this.analyser = analyser;
 
+    // Separate node with no smoothing + a short window: the fastest possible
+    // read on the low end, used only to catch the kick.
+    const onset = this.ctx.createAnalyser();
+    onset.fftSize = 1024;
+    onset.smoothingTimeConstant = 0;
+    src.connect(onset);
+    this.onset = onset;
+    this.onsetFreq = new Uint8Array(onset.frequencyBinCount);
+
     this.freq = new Uint8Array(analyser.frequencyBinCount);
     this.time = new Uint8Array(analyser.fftSize);
     this.startedAt = performance.now();
+    this.lastLoopMs = performance.now();
 
     // If the user stops sharing from the browser chrome, tell the host.
     const track = stream.getAudioTracks()[0];
@@ -176,6 +213,7 @@ export class ReactiveEngine {
     void this.ctx?.close();
     this.ctx = null;
     this.analyser = null;
+    this.onset = null;
     this.source = null;
   }
 
@@ -212,27 +250,93 @@ export class ReactiveEngine {
     b.energy += (level - b.energy) * 0.04;
 
     // ── Beat / onset ──────────────────────────────────────────────────────
-    // Two signals, either fires: (1) bass sits well above its recent local
-    // average (works on compressed masters with little variance), (2) a sharp
-    // positive jump in bass energy frame-to-frame (a real transient).
-    const flux = Math.max(0, bass - this.prevBass);
-    this.prevBass = bass;
+    const nowMs = performance.now();
+    const dtMs = Math.min(64, nowMs - this.lastLoopMs || 16);
+    this.lastLoopMs = nowMs;
+
+    // Onset signal from the fast, unsmoothed low end.
+    let onsetBass = bass;
+    if (this.onset) {
+      this.onset.getByteFrequencyData(this.onsetFreq);
+      const n = Math.max(2, Math.round(160 / (nyquist / this.onsetFreq.length)));
+      let s = 0;
+      for (let i = 1; i <= n; i++) s += this.onsetFreq[i];
+      onsetBass = s / n / 255;
+    }
+
+    const fluxRaw = Math.max(0, onsetBass - this.prevBass);
+    this.prevBass = onsetBass;
 
     const hist = this.bassHistory;
-    hist.push(bass);
+    hist.push(onsetBass);
     if (hist.length > HISTORY) hist.shift();
-    const mean = hist.reduce((s, v) => s + v, 0) / hist.length;
+    const mean = hist.reduce((sum, v) => sum + v, 0) / hist.length;
 
     this.beatCooldown = Math.max(0, this.beatCooldown - 1);
-    const overAverage = bass > mean * 1.32 && bass > 0.08;
-    const transient = flux > 0.055;
-    if (this.beatCooldown === 0 && (overAverage || transient)) {
+    // Sensitive: a jump above the local average OR any real transient.
+    const detected =
+      this.beatCooldown === 0 &&
+      onsetBass > 0.05 &&
+      (onsetBass > mean * 1.22 || fluxRaw > 0.03);
+
+    if (detected) {
       b.beat = 1;
-      this.beatCooldown = 6; // ~100ms lockout — up to ~10 beats/s
+      this.beatCooldown = 5; // ~80ms lockout
+
+      // ── tempo tracking ──────────────────────────────────────────────
+      if (this.lastBeatMs) {
+        const iv = nowMs - this.lastBeatMs;
+        if (iv > 250 && iv < 1500) {
+          // 40–240 BPM
+          this.beatIntervals.push(iv);
+          if (this.beatIntervals.length > 10) this.beatIntervals.shift();
+          const sorted = [...this.beatIntervals].sort((x, y) => x - y);
+          const med = sorted[sorted.length >> 1];
+          const near = this.beatIntervals.filter(
+            (v) => Math.abs(v - med) / med < 0.16,
+          );
+          if (near.length >= 3) {
+            this.beatInterval =
+              near.reduce((sum, v) => sum + v, 0) / near.length;
+            this.tempoConf = clamp01(near.length / 6);
+          } else {
+            this.tempoConf *= 0.9;
+          }
+        }
+      }
+      this.lastBeatMs = nowMs;
+
+      // Re-align the grid to this beat when it lands near where we expect one
+      // (or we don't trust the lock yet).
+      const ph =
+        this.beatInterval > 0 ? this.phaseClock / this.beatInterval : 0;
+      if (this.tempoConf < 0.5 || ph < 0.22 || ph > 0.78) {
+        this.phaseClock = 0;
+      }
     } else {
-      // Slower release so a shader actually has frames to animate on.
-      b.beat *= 0.86;
+      b.beat *= 0.8;
     }
+
+    // ── phase-locked, latency-compensated grid ───────────────────────────
+    let gridPulse = 0;
+    if (this.beatInterval > 0) {
+      this.phaseClock = (this.phaseClock + dtMs) % this.beatInterval;
+      const compensated =
+        (this.phaseClock + LATENCY_MS) % this.beatInterval;
+      const phase = compensated / this.beatInterval;
+      b.beatPhase = phase;
+      b.bpm = 60000 / this.beatInterval;
+      // sharp near the downbeat, near-zero mid-beat
+      const toBeat = Math.min(phase, 1 - phase) * 2; // 0 at beat, 1 mid
+      gridPulse = Math.pow(1 - toBeat, 2.2) * this.tempoConf;
+    } else {
+      b.beatPhase = 0;
+      b.bpm = 0;
+    }
+
+    // The signal to animate on: whichever is louder, the real hit or the
+    // predicted grid — so every beat reads even when one is buried.
+    b.pulse = Math.max(b.pulse * 0.8, b.beat, gridPulse);
 
     // Down-sample waveform + spectrum for cheap shader uniforms.
     const wf = b.waveform;
