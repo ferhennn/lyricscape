@@ -1,102 +1,199 @@
 "use client";
 
-import { FullscreenShader } from "../FullscreenShader";
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { PerspectiveCamera } from "@react-three/drei";
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+} from "@react-three/postprocessing";
+import * as THREE from "three";
+import { useAudio } from "../AudioProvider";
 
-const FRAG = /* glsl */ `
-// ── Smooth ─────────────────────────────────────────────────────────────────
-// Slow-flowing fields of colour — silk / ink in water — for relaxed listening.
-// Nothing snaps to the beat. The flow speed follows the section energy
-// (uDynamics), the palette warms and brightens with the mix (uBright), the
-// whole field breathes on the long swells (uLoud), and a chorus (uDrop) opens
-// a slow wash of light. Calm passages (uCalm) slow it further and desaturate.
+/**
+ * ── Smooth ────────────────────────────────────────────────────────────────
+ * A Rutt-Etra scanline landscape — the sound sculpted into a ridge of light
+ * that scrolls away into the dark, one line per frame of history. Inspired by
+ * the Rutt-Etra video synthesiser and the "Unknown Pleasures" plot. Calm by
+ * design: the ridge height follows loudness, the scroll slows right down in
+ * sparse passages, the palette warms with the mix, and every beat sends one
+ * soft swell along the front edge.
+ */
 
-float n2(vec2 p){
-  vec2 i = floor(p), f = fract(p);
-  f = f*f*(3.0-2.0*f);
-  float a = fract(sin(dot(i,vec2(127.1,311.7)))*43758.5453);
-  float b = fract(sin(dot(i+vec2(1,0),vec2(127.1,311.7)))*43758.5453);
-  float c = fract(sin(dot(i+vec2(0,1),vec2(127.1,311.7)))*43758.5453);
-  float d = fract(sin(dot(i+vec2(1,1),vec2(127.1,311.7)))*43758.5453);
-  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-}
-float fbm2(vec2 p){
-  float v=0.0, a=0.55;
-  for(int i=0;i<6;i++){ v+=a*n2(p); p=p*1.9+vec2(1.7,-2.3); a*=0.5; }
-  return v;
-}
+const COLS = 128;
+const ROWS = 110;
+const WIDTH = 17;
+const DEPTH = 13;
 
-vec3 ramp(float x){
-  x = clamp(x, 0.0, 1.0);
-  // deep indigo → petrol → rose → warm sand : a calm, wide gradient
-  vec3 c0 = vec3(0.06, 0.08, 0.20);
-  vec3 c1 = vec3(0.10, 0.34, 0.42);
-  vec3 c2 = vec3(0.55, 0.32, 0.48);
-  vec3 c3 = vec3(0.95, 0.78, 0.62);
-  vec3 a = mix(c0, c1, smoothstep(0.0, 0.4, x));
-  vec3 b = mix(c2, c3, smoothstep(0.55, 1.0, x));
-  return mix(a, b, smoothstep(0.3, 0.7, x));
-}
-
+const VERT = /* glsl */ `
+uniform sampler2D uHist;
+uniform float uAmp, uPulse, uFade;
+varying float vH;
+varying vec2 vGrid;
 void main(){
-  vec2 uv = vUv;
-  vec2 p = (uv - 0.5) * vec2(uRes.x/uRes.y, 1.0);
-
-  float calm = clamp(uCalm, 0.0, 1.0);
-  float rate = mix(0.10, 0.028, calm) * (0.7 + uDynamics*0.9);
-  float t = uTime * rate;
-
-  // breathing zoom on the long swells + a soft push on every beat
-  float pulse = uPulse;
-  float breathe = 1.0 - (uLoud*0.06 + uDrop*0.05 + pulse*0.035);
-  p *= breathe;
-
-  // two-stage domain warp for that liquid-silk fold
-  vec2 q = vec2(
-    fbm2(p*1.3 + vec2(0.0, t)),
-    fbm2(p*1.3 + vec2(3.2, -t*0.8))
-  );
-  vec2 r = vec2(
-    fbm2(p*1.6 + 2.4*q + vec2(1.7, 9.2) + t*0.5),
-    fbm2(p*1.6 + 2.4*q + vec2(8.3, 2.8) - t*0.4)
-  );
-  float f = fbm2(p*1.2 + 3.0*r + t*0.3);
-
-  // very soft waveform ripple, wide and slow
-  f += (wave(fract(uv.x*0.5 + t*0.1)) - 0.0) * 0.05 * uMid;
-
-  // each beat sends one slow ring through the flow field
-  float rr = length(p);
-  f += sin(rr*7.0 - uTime*6.0) * pulse * 0.06;
-
-  float shade = f + (uv.y - 0.5)*0.25 + uEnergy*0.15;
-  vec3 col = ramp(shade + uBright*0.15);
-
-  // gentle iridescent banding in the folds
-  float bands = 0.5 + 0.5*sin(f*10.0 + t*2.0 + uBright*3.0);
-  col += ramp(shade + 0.2).zyx * bands * 0.06 * (0.4 + uEnergy);
-
-  // chorus wash — a slow diagonal sweep of light
-  float sweep = smoothstep(0.9, 0.0, abs(dot(uv, vec2(0.7,0.7)) - fract(uTime*0.05)*1.4));
-  col += ramp(0.8) * sweep * uDrop * 0.25;
-
-  // a gentle bloom of light from the centre on every beat
-  col += ramp(shade + 0.35) * pulse * (0.10 + 0.14 * exp(-rr*rr*3.0));
-
-  // desaturate + settle in the calmest passages
-  float lum = dot(col, vec3(0.299,0.587,0.114));
-  col = mix(col, vec3(lum), calm*0.25);
-
-  // soft vignette
-  col *= 1.0 - dot(p,p)*0.10;
-
-  col += uLoud*0.03;
-  col = 1.0 - exp(-col*1.5);
-  col = pow(col, vec3(0.92));
-  col *= uFade;
-  gl_FragColor = vec4(col, 1.0);
+  vGrid = uv;
+  float h = texture2D(uHist, uv).r;
+  vH = h;
+  vec3 p = position;
+  p.y += h * uAmp;
+  // horizon: far rows settle downward so the ridge reads as terrain
+  p.y -= pow(uv.y, 2.0) * 1.6;
+  // a soft swell travelling along the newest row on each beat
+  p.y += uPulse * 0.5 * exp(-uv.y * 40.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }
 `;
 
+const FRAG = /* glsl */ `
+precision highp float;
+uniform vec3 uLow, uHigh;
+uniform float uPulse, uFade;
+varying float vH;
+varying vec2 vGrid;
+void main(){
+  vec3 col = mix(uLow, uHigh, clamp(vH * 1.6, 0.0, 1.0));
+  col += uLow * 0.6;                                   // floor so flat lines read
+  float depth = mix(1.0, 0.12, vGrid.y);               // dim into the distance
+  col *= depth * 1.7;
+  col += uHigh * uPulse * 0.5 * smoothstep(0.16, 0.0, vGrid.y);
+  gl_FragColor = vec4(col * uFade, 1.0);
+}
+`;
+
+function buildLineGrid() {
+  const segsPerRow = COLS - 1;
+  const count = ROWS * segsPerRow * 2;
+  const pos = new Float32Array(count * 3);
+  const uv = new Float32Array(count * 2);
+  let i = 0;
+  for (let r = 0; r < ROWS; r++) {
+    const v = r / (ROWS - 1);
+    const z = (v - 0.5) * DEPTH;
+    for (let c = 0; c < segsPerRow; c++) {
+      for (let k = 0; k < 2; k++) {
+        const cc = c + k;
+        const u = cc / (COLS - 1);
+        pos[i * 3] = (u - 0.5) * WIDTH;
+        pos[i * 3 + 1] = 0;
+        pos[i * 3 + 2] = z;
+        uv[i * 2] = u;
+        uv[i * 2 + 1] = v;
+        i++;
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  return g;
+}
+
+function makeUniforms() {
+  // RGBA/UnsignedByte — the one texture format guaranteed everywhere.
+  const data = new Uint8Array(COLS * ROWS * 4);
+  const tex = new THREE.DataTexture(data, COLS, ROWS);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return {
+    uHist: { value: tex },
+    uAmp: { value: 2.2 },
+    uPulse: { value: 0 },
+    uFade: { value: 0 },
+    uLow: { value: new THREE.Color("#1b2f6b") },
+    uHigh: { value: new THREE.Color("#f2ddc2") },
+  };
+}
+
 export function SmoothScene() {
-  return <FullscreenShader frag={FRAG} />;
+  const { bandsRef } = useAudio();
+  const camRef = useRef<THREE.PerspectiveCamera>(null);
+  const matRef = useRef<THREE.ShaderMaterial>(null);
+  const scroll = useRef(0);
+  const sway = useRef(0);
+
+  const geometry = useMemo(() => buildLineGrid(), []);
+  const uniforms = useMemo(() => makeUniforms(), []);
+
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(0.05, dtRaw);
+    const mat = matRef.current;
+    if (!mat) return;
+    const u = mat.uniforms;
+    const b = bandsRef.current;
+    const activity = 1 - b.calm;
+
+    const amp = 1.1 + b.loudNorm * 2.4 + b.energy * 2.0 + b.drop * 1.2;
+    u.uAmp.value += (amp - u.uAmp.value) * 0.05;
+    u.uPulse.value = b.pulse;
+    u.uFade.value = Math.min(1, u.uFade.value + dt / 1.3);
+
+    (u.uLow.value as THREE.Color).setHSL(
+      0.62 - (0.15 + b.brightness * 0.7) * 0.12,
+      0.55,
+      0.16 + b.energy * 0.05,
+    );
+    (u.uHigh.value as THREE.Color).setHSL(0.09 + b.brightness * 0.04, 0.35, 0.78);
+
+    // scroll the history: rows/sec slows right down when the track is sparse
+    const rowsPerSec = THREE.MathUtils.lerp(7, 26, activity * (0.5 + b.dynamics));
+    scroll.current += dt * rowsPerSec;
+    const tex = u.uHist.value as THREE.DataTexture;
+    const data = tex.image.data as Uint8Array;
+    let dirty = false;
+    while (scroll.current >= 1) {
+      scroll.current -= 1;
+      dirty = true;
+      const row = COLS * 4;
+      data.copyWithin(row, 0, row * (ROWS - 1)); // push history back one row
+      const spec = b.spectrum;
+      const wave = b.waveform;
+      for (let c = 0; c < COLS; c++) {
+        const t = c / COLS;
+        const s = spec[Math.min(spec.length - 1, Math.floor(t * spec.length))];
+        const w = Math.abs(
+          wave[Math.min(wave.length - 1, Math.floor(t * wave.length))],
+        );
+        const h = Math.sqrt(s) * 0.85 + w * 0.15;
+        data[c * 4] = Math.max(0, Math.min(255, h * 255));
+        data[c * 4 + 3] = 255;
+      }
+    }
+    if (dirty) tex.needsUpdate = true;
+
+    sway.current += dt;
+    if (camRef.current) {
+      camRef.current.position.x = Math.sin(sway.current * 0.06) * 1.1;
+      camRef.current.position.y = 3.4 + Math.sin(sway.current * 0.05) * 0.3;
+      camRef.current.lookAt(0, 0.4, -1.5);
+    }
+  });
+
+  return (
+    <>
+      <color attach="background" args={["#04040c"]} />
+      <PerspectiveCamera ref={camRef} makeDefault fov={56} position={[0, 3.4, 7.2]} />
+      <lineSegments geometry={geometry} frustumCulled={false}>
+        <shaderMaterial
+          ref={matRef}
+          vertexShader={VERT}
+          fragmentShader={FRAG}
+          uniforms={uniforms}
+          transparent
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </lineSegments>
+      <EffectComposer>
+        <Bloom
+          intensity={1.15}
+          luminanceThreshold={0.12}
+          luminanceSmoothing={0.9}
+          mipmapBlur
+        />
+        <Vignette eskil={false} offset={0.2} darkness={0.82} />
+      </EffectComposer>
+    </>
+  );
 }
