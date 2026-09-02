@@ -141,32 +141,33 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         song = localTrack(songId)!;
         const extras = localTrackExtras(songId);
         provider = new LocalAudioProvider(() => song.previewUrl);
-        await provider.load(song);
 
-        set({ loadingLabel: "RETRIEVING LYRICS" });
-        lyrics = extras.lrcUrl
-          ? await fetchLocalLrc(extras.lrcUrl, song)
-          : await fetchRemoteLyrics(song);
+        // Audio, lyrics and palette are independent — fetch them together.
+        const [, l, p] = await Promise.all([
+          provider.load(song),
+          extras.lrcUrl ? fetchLocalLrc(extras.lrcUrl, song) : fetchRemoteLyrics(song),
+          paletteFor(song.artworkUrl),
+        ]);
+        lyrics = l;
+        palette = p;
         const dur = provider.getSnapshot().duration || song.durationMs / 1000 || 210;
         sceneMeta = autoSceneMeta(dur, lyrics.lines, extras.scene);
-        palette = song.artworkUrl
-          ? await extractPalette(song.artworkUrl).catch(() => FALLBACK_PALETTE)
-          : FALLBACK_PALETTE;
       } else if (isJamendo) {
         set({ loadingLabel: "LOADING TRACK" });
         const res = await fetch(`/api/jamendo/track/${jamendoId(songId)}`);
         if (!res.ok) throw new Error("SONG_UNAVAILABLE");
         song = ((await res.json()) as { song: Song }).song;
         provider = new LocalAudioProvider(() => song.previewUrl, "jamendo");
-        await provider.load(song);
 
-        set({ loadingLabel: "RETRIEVING LYRICS" });
-        lyrics = await fetchRemoteLyrics(song);
+        const [, l, p] = await Promise.all([
+          provider.load(song),
+          fetchRemoteLyrics(song),
+          paletteFor(song.artworkUrl),
+        ]);
+        lyrics = l;
+        palette = p;
         const dur = provider.getSnapshot().duration || song.durationMs / 1000 || 210;
         sceneMeta = autoSceneMeta(dur, lyrics.lines);
-        palette = song.artworkUrl
-          ? await extractPalette(song.artworkUrl).catch(() => FALLBACK_PALETTE)
-          : FALLBACK_PALETTE;
       } else if (isDemo || !appleConfigured) {
         set({ loadingLabel: "LOADING WORLD" });
         song = DEMO_CONFIG.song;
@@ -187,14 +188,15 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         if (!fetched) throw new Error("SONG_UNAVAILABLE");
         song = fetched;
         provider = appleMusic.createAudioProvider();
-        await provider.load(song);
 
-        set({ loadingLabel: "RETRIEVING LYRICS" });
-        lyrics = await fetchRemoteLyrics(song);
+        const [, l, p] = await Promise.all([
+          provider.load(song),
+          fetchRemoteLyrics(song),
+          paletteFor(song.artworkUrl),
+        ]);
+        lyrics = l;
+        palette = p;
         sceneMeta = autoSceneMeta(song.durationMs / 1000, lyrics.lines);
-        palette = song.artworkUrl
-          ? await extractPalette(song.artworkUrl).catch(() => FALLBACK_PALETTE)
-          : FALLBACK_PALETTE;
       }
 
       // Apply the persisted volume / mute preference to the fresh provider.
@@ -335,6 +337,12 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     });
   },
 }));
+
+function paletteFor(artworkUrl: string | undefined): Promise<AccentPalette> {
+  return artworkUrl
+    ? extractPalette(artworkUrl).catch(() => FALLBACK_PALETTE)
+    : Promise.resolve(FALLBACK_PALETTE);
+}
 
 async function fetchLocalLrc(url: string, song: Song): Promise<Lyrics> {
   try {
