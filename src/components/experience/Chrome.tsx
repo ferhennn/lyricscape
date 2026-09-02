@@ -29,6 +29,7 @@ type IconName =
   | "mute"
   | "sound"
   | "exit"
+  | "down"
   | "expand"
   | "compress";
 
@@ -39,6 +40,7 @@ function Icon({ name }: { name: IconName }) {
     back: "M11 12 20 6v12zM4 6v12h2V6z",
     fwd: "M13 12 4 6v12zM18 6v12h2V6z",
     exit: "M6 6l12 12M18 6 6 18",
+    down: "M6 9l6 6 6-6",
     mute: "M4 9v6h4l5 4V5L8 9zM16 9l4 6M20 9l-4 6",
     sound: "M4 9v6h4l5 4V5L8 9zM16 8a5 5 0 0 1 0 8",
     expand: "M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5",
@@ -147,7 +149,9 @@ export function Chrome({ visible }: { visible: boolean }) {
     else void document.documentElement.requestFullscreen().catch(() => {});
   };
 
-  const exit = () => {
+  // Minimize keeps the track playing and hands off to the mini-player.
+  const minimize = () => router.push("/library");
+  const stop = () => {
     teardown();
     router.push("/library");
   };
@@ -168,9 +172,24 @@ export function Chrome({ visible }: { visible: boolean }) {
           </p>
           <p className="meta truncate text-muted">{song?.artistName}</p>
         </div>
-        <button onClick={exit} data-cursor="interactive" className="label flex items-center gap-2 hover:text-ink">
-          Exit <Icon name="exit" />
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={minimize}
+            data-cursor="interactive"
+            aria-label="Back to library, keep playing"
+            className="label flex items-center gap-2 hover:text-ink"
+          >
+            Minimize <Icon name="down" />
+          </button>
+          <button
+            onClick={stop}
+            data-cursor="interactive"
+            aria-label="Stop playback and exit"
+            className="label flex items-center gap-2 hover:text-ink"
+          >
+            Exit <Icon name="exit" />
+          </button>
+        </div>
       </motion.header>
 
       {/* bottom cluster */}

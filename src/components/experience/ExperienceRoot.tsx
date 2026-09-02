@@ -34,7 +34,6 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     song,
     prepare,
     play,
-    teardown,
     controlsVisible,
     setControlsVisible,
   } = useExperience();
@@ -50,15 +49,21 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     () => detectWebGL(),
     () => false as boolean,
   );
-  const [introDone, setIntroDone] = useState(false);
+  // If we're re-entering the track that's already loaded (expanding the
+  // mini-player), skip the intro.
+  const [introDone, setIntroDone] = useState(
+    () => useExperience.getState().song?.id === songId,
+  );
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => bindPointer(), []);
 
   useEffect(() => {
-    void prepare(songId);
-    return () => teardown();
-  }, [songId, prepare, teardown]);
+    // Playback is a persistent, app-wide singleton now: leaving the experience
+    // keeps the track running in the mini-player, so only prepare a genuinely
+    // different song and never tear down on unmount.
+    if (useExperience.getState().song?.id !== songId) void prepare(songId);
+  }, [songId, prepare]);
 
   // Cinematic intro, then autoplay.
   useEffect(() => {

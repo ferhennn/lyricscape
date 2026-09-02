@@ -10,7 +10,7 @@ const MODE_CYCLE: VisualMode[] = ["cinematic", "3d", "kinetic", "minimal", "lyri
 
 export function KeyboardShortcuts() {
   const router = useRouter();
-  const { togglePlay, seekBy, toggleMute, teardown } = useExperience();
+  const { togglePlay, seekBy, toggleMute } = useExperience();
   const setSetting = useSettings((s) => s.set);
 
   useEffect(() => {
@@ -46,14 +46,14 @@ export function KeyboardShortcuts() {
           break;
         }
         case "escape":
-          teardown();
+          // Leave the immersive view but keep the track playing (mini-player).
           router.push("/library");
           break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePlay, seekBy, toggleMute, teardown, router, setSetting]);
+  }, [togglePlay, seekBy, toggleMute, router, setSetting]);
 
   return null;
 }
