@@ -3,7 +3,7 @@
 // Embedded cover art is extracted to public/tracks/.covers/<id>.<ext>.
 // Existing manifest entries are preserved (hand edits win) and merged by file.
 
-import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, extname, basename } from "node:path";
 import { parseFile } from "music-metadata";
@@ -98,6 +98,22 @@ async function main() {
     .filter((e) => e.isFile() && AUDIO_EXT.has(extname(e.name).toLowerCase()))
     .map((e) => e.name)
     .sort();
+
+  // Fast path: nothing changed since the manifest was written — skip the
+  // per-file tag scan entirely (it's the slow part of `predev`).
+  if (existsSync(MANIFEST) && existing.length === audioFiles.length) {
+    const sameFiles = audioFiles.every((f) => byFile.has(f));
+    if (sameFiles) {
+      const manifestMtime = (await stat(MANIFEST)).mtimeMs;
+      const mtimes = await Promise.all(
+        audioFiles.map((f) => stat(join(TRACKS_DIR, f)).then((s) => s.mtimeMs)),
+      );
+      if (mtimes.every((m) => m <= manifestMtime)) {
+        console.log(`[tracks] manifest up to date - ${existing.length} track(s)`);
+        return;
+      }
+    }
+  }
 
   const usedIds = new Set();
   const manifest = [];
