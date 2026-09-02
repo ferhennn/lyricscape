@@ -182,6 +182,24 @@ export function Chrome({ visible }: { visible: boolean }) {
   const [modeOpen, setModeOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    if (!song) return;
+    const t = Math.floor(useExperience.getState().clock.time);
+    const url = `${window.location.origin}/experience/${song.id}${t > 5 ? `?t=${t}` : ""}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: song.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      /* user dismissed the share sheet */
+    }
+  };
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);
@@ -229,6 +247,14 @@ export function Chrome({ visible }: { visible: boolean }) {
           </AnimatePresence>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={share}
+            data-cursor="interactive"
+            aria-label="Copy a link to this moment"
+            className="label hover:text-ink"
+          >
+            {copied ? "Copied" : "Share"}
+          </button>
           <button
             onClick={minimize}
             data-cursor="interactive"

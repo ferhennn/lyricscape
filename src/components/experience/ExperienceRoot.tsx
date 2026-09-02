@@ -34,6 +34,7 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     song,
     prepare,
     play,
+    seek,
     controlsVisible,
     setControlsVisible,
   } = useExperience();
@@ -54,6 +55,12 @@ export function ExperienceRoot({ songId }: { songId: string }) {
   const [introDone, setIntroDone] = useState(
     () => useExperience.getState().song?.id === songId,
   );
+  // A shared link may carry ?t=<seconds> to open at a specific point.
+  const [startAt] = useState(() =>
+    typeof window !== "undefined"
+      ? Math.max(0, Number(new URLSearchParams(window.location.search).get("t")) || 0)
+      : 0,
+  );
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => bindPointer(), []);
@@ -64,6 +71,13 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     // different song and never tear down on unmount.
     if (useExperience.getState().song?.id !== songId) void prepare(songId);
   }, [songId, prepare]);
+
+  // Honour ?t= once the track is loaded — an explicit link beats a saved resume.
+  useEffect(() => {
+    if (startAt > 0 && (status === "ready" || status === "playing")) seek(startAt);
+    // Only meant to fire on the first transition into a playable state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status === "ready" || status === "playing"]);
 
   // Cinematic intro, then autoplay.
   useEffect(() => {
