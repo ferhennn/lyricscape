@@ -8,6 +8,7 @@ import { useSettings } from "@/stores/settings";
 import { useHistory } from "@/stores/history";
 import { useQueue } from "@/stores/queue";
 import { Timeline } from "./Timeline";
+import { QueueDrawer } from "./QueueDrawer";
 import { cn } from "@/lib/utils";
 import { LOCAL_TRACKS } from "@/data/tracks";
 import type { Song, VisualMode } from "@/types";
@@ -132,6 +133,7 @@ export function Chrome({ visible }: { visible: boolean }) {
   const visualMode = useSettings((s) => s.visualMode);
   const [modeOpen, setModeOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);
@@ -205,6 +207,14 @@ export function Chrome({ visible }: { visible: boolean }) {
 
           <div className="flex items-center gap-4">
             <button
+              onClick={() => setQueueOpen(true)}
+              data-cursor="interactive"
+              className={cn("label", queue.length > 0 ? "text-ink" : "text-muted", "hover:text-ink")}
+            >
+              Queue{queue.length > 0 ? ` · ${queue.length}` : ""}
+            </button>
+
+            <button
               onClick={() => setSetting("showLyrics", !showLyrics)}
               data-cursor="interactive"
               className={cn("label", showLyrics ? "text-ink" : "text-muted")}
@@ -265,6 +275,15 @@ export function Chrome({ visible }: { visible: boolean }) {
         </div>
         <Timeline visible={visible} />
       </motion.div>
+
+      <QueueDrawer
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        onPlay={(s) => {
+          setQueueOpen(false);
+          goTo(s);
+        }}
+      />
     </>
   );
 }
