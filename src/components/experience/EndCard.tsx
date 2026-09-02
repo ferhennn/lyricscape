@@ -23,6 +23,7 @@ export function EndCard() {
   const autoAdvance = useSettings((s) => s.autoplay);
   const queued = useQueue((s) => s.items);
   const dequeue = useQueue((s) => s.remove);
+  const enqueue = useQueue((s) => s.add);
 
   const fallback = useMemo<Song[]>(() => {
     const pool = LOCAL_TRACKS.filter((t) => t.id !== song?.id);
@@ -152,14 +153,14 @@ export function EndCard() {
           </div>
           <ul className="flex flex-col divide-y divide-line border-y border-line">
             {upNext.map((next) => (
-              <li key={next.id}>
+              <li key={next.id} className="group flex items-center gap-3">
                 <button
                   onClick={() => {
                     cancelAuto();
                     playNext(next);
                   }}
                   data-cursor="interactive"
-                  className="group flex w-full items-center gap-4 py-3 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-4 py-3 text-left"
                 >
                   <SongArtwork
                     src={next.artworkUrl}
@@ -177,6 +178,26 @@ export function EndCard() {
                     Play
                   </span>
                 </button>
+                {fromQueue ? (
+                  <button
+                    onClick={() => dequeue(next.id)}
+                    data-cursor="interactive"
+                    aria-label={`Remove ${next.title} from queue`}
+                    className="label shrink-0 px-2 py-1 text-muted hover:text-ink"
+                  >
+                    ✕
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => enqueue(next)}
+                    disabled={queued.some((q) => q.id === next.id)}
+                    data-cursor="interactive"
+                    aria-label={`Add ${next.title} to queue`}
+                    className="label shrink-0 whitespace-nowrap px-2 py-1 text-muted hover:text-ink disabled:opacity-50"
+                  >
+                    {queued.some((q) => q.id === next.id) ? "Queued" : "+ Queue"}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

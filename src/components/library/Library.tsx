@@ -22,43 +22,61 @@ const ease = [0.16, 1, 0.3, 1] as const;
 function Shelf({ title, songs }: { title: string; songs: Song[] }) {
   const router = useRouter();
   const push = useHistory((s) => s.push);
+  const addToQueue = useQueue((s) => s.add);
+  const queued = useQueue((s) => s.items);
   if (songs.length === 0) return null;
   return (
     <section className="mt-16">
       <h2 className="label mb-6">{title}</h2>
       <div className="edge-fade-y -mx-6 flex gap-8 overflow-x-auto px-6 pb-4">
-        {songs.map((song, i) => (
-          <motion.button
-            key={`${title}-${song.id}`}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.6, ease }}
-            onClick={() => {
-              push(song);
-              router.push(`/experience/${song.id}`);
-            }}
-            data-cursor="interactive"
-            className="group w-[46vw] shrink-0 text-left sm:w-64"
-          >
-            <div className="overflow-hidden">
-              <div className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]">
-                <SongArtwork
-                  src={song.artworkUrl}
-                  alt={song.albumName || song.title}
-                  seed={song.id}
-                  size={256}
-                  className="aspect-square w-full"
-                />
-              </div>
-            </div>
-            <p className="mt-4 truncate text-lg font-medium tracking-tight">{song.title}</p>
-            <p className="meta truncate text-muted">
-              {song.artistName}
-              {song.durationMs ? ` · ${formatTime(song.durationMs / 1000)}` : ""}
-            </p>
-          </motion.button>
-        ))}
+        {songs.map((song, i) => {
+          const isQueued = queued.some((q) => q.id === song.id);
+          return (
+            <motion.div
+              key={`${title}-${song.id}`}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.6, ease }}
+              className="group relative w-[46vw] shrink-0 text-left sm:w-64"
+            >
+              <button
+                onClick={() => {
+                  push(song);
+                  router.push(`/experience/${song.id}`);
+                }}
+                data-cursor="interactive"
+                className="block w-full text-left"
+              >
+                <div className="overflow-hidden">
+                  <div className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]">
+                    <SongArtwork
+                      src={song.artworkUrl}
+                      alt={song.albumName || song.title}
+                      seed={song.id}
+                      size={256}
+                      className="aspect-square w-full"
+                    />
+                  </div>
+                </div>
+                <p className="mt-4 truncate text-lg font-medium tracking-tight">{song.title}</p>
+                <p className="meta truncate text-muted">
+                  {song.artistName}
+                  {song.durationMs ? ` · ${formatTime(song.durationMs / 1000)}` : ""}
+                </p>
+              </button>
+              <button
+                onClick={() => addToQueue(song)}
+                disabled={isQueued}
+                data-cursor="interactive"
+                aria-label={isQueued ? "Already queued" : `Add ${song.title} to queue`}
+                className="label absolute right-2 top-2 rounded-full border border-line bg-void/80 px-2.5 py-1 text-ink opacity-0 backdrop-blur transition-opacity hover:bg-void focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-100 disabled:text-muted"
+              >
+                {isQueued ? "Queued" : "+ Queue"}
+              </button>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
