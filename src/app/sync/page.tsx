@@ -30,7 +30,7 @@ const SCENES = [
 
 export default function SyncIndex() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-24">
+    <main className="mx-auto max-w-5xl px-6 py-24">
       <p className="label mb-4">Audio → light</p>
       <h1 className="text-display mb-5 text-5xl sm:text-6xl">Sync</h1>
       <p className="meta mb-3 max-w-lg text-muted">
@@ -45,23 +45,19 @@ export default function SyncIndex() {
         session carries across all three — grant it once.
       </p>
 
-      <ul className="space-y-3">
+      <ul className="grid gap-4 sm:grid-cols-3">
         {SCENES.map((s) => (
-          <li key={s.slug}>
+          <li key={s.slug} className="contents">
             <Link
               href={`/sync/${s.slug}`}
-              className="group block rounded-2xl border border-line p-5 transition hover:bg-ink/5"
+              className="group flex h-full flex-col rounded-2xl border border-line p-5 transition hover:bg-ink/5"
             >
-              <div className="mb-1 flex items-baseline justify-between">
-                <span className="text-display text-2xl">
-                  {s.label}
-                  <span className="label ml-3 align-middle">{s.tag}</span>
-                </span>
-                <span className="label transition group-hover:text-ink">
-                  open ▸
-                </span>
-              </div>
-              <p className="meta text-muted">{s.copy}</p>
+              <span className="text-display text-2xl">{s.label}</span>
+              <span className="label mt-1">{s.tag}</span>
+              <p className="meta mt-3 flex-1 text-muted">{s.copy}</p>
+              <span className="label mt-4 transition group-hover:text-ink">
+                open ▸
+              </span>
             </Link>
           </li>
         ))}
