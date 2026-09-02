@@ -125,6 +125,9 @@ export class ReactiveEngine {
 
   source: AudioSource | null = null;
 
+  /** User trim on how hard the visuals react. 1 = default; 0.5 calmer, 2 louder. */
+  sensitivity = 1;
+
   async start(): Promise<AudioSource> {
     let stream: MediaStream;
     let source: AudioSource;
@@ -411,6 +414,20 @@ export class ReactiveEngine {
       this.dropCooldown = 90; // ~1.5s lockout
     } else {
       b.drop *= 0.965; // slow, cinematic decay
+    }
+
+    // User sensitivity trim — scales the intensity signals only, leaving the
+    // descriptive ones (brightness, calm, dynamics, bpm, beatPhase) intact.
+    const sens = this.sensitivity;
+    if (sens !== 1) {
+      b.level = clamp01(b.level * sens);
+      b.energy = clamp01(b.energy * sens);
+      b.bass = clamp01(b.bass * sens);
+      b.mid = clamp01(b.mid * sens);
+      b.treble = clamp01(b.treble * sens);
+      b.beat = clamp01(b.beat * sens);
+      b.pulse = clamp01(b.pulse * sens);
+      b.loudNorm = clamp01(b.loudNorm * sens);
     }
 
     b.time = (performance.now() - this.startedAt) / 1000;

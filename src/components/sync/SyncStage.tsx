@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAudio } from "./AudioProvider";
+import { useSettings } from "@/stores/settings";
 import { SmoothScene } from "./scenes/SmoothScene";
 import { SoothingScene } from "./scenes/SoothingScene";
 import { PopScene } from "./scenes/PopScene";
@@ -26,6 +27,8 @@ export function SyncStage({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const active = sceneFor(pathname);
   const { status, source, error, start, stop } = useAudio();
+  const sensitivity = useSettings((s) => s.syncSensitivity);
+  const setSetting = useSettings((s) => s.set);
 
   // fade-through-black on scene change
   const [veil, setVeil] = useState(false);
@@ -109,6 +112,21 @@ export function SyncStage({ children }: { children: ReactNode }) {
           ◂ Lyricscape / Sync
         </Link>
         <div className="flex items-center gap-3">
+          {running && (
+            <label className="hidden items-center gap-2 font-mono text-xs text-muted sm:flex">
+              reactivity
+              <input
+                type="range"
+                min={0.5}
+                max={2}
+                step={0.05}
+                value={sensitivity}
+                onChange={(e) => setSetting("syncSensitivity", Number(e.target.value))}
+                aria-label="Visual reactivity"
+                className="w-24 accent-[var(--accent)]"
+              />
+            </label>
+          )}
           {running && (
             <button onClick={stop} className="meta text-muted hover:text-ink">
               {source === "system" ? "● system audio" : "● mic"} — stop

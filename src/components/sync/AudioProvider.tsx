@@ -17,6 +17,7 @@ import {
   type AudioSource,
   type Bands,
 } from "@/lib/audio/reactive-engine";
+import { useSettings } from "@/stores/settings";
 
 type Status = "idle" | "starting" | "running" | "error";
 
@@ -44,6 +45,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("idle");
   const [source, setSource] = useState<AudioSource | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sensitivity = useSettings((s) => s.syncSensitivity);
+
+  useEffect(() => {
+    if (engineRef.current) engineRef.current.sensitivity = sensitivity;
+  }, [sensitivity]);
 
   const stop = useCallback(() => {
     engineRef.current?.stop();
@@ -58,6 +64,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     setStatus("starting");
     setError(null);
     const engine = new ReactiveEngine();
+    engine.sensitivity = useSettings.getState().syncSensitivity;
     try {
       const src = await engine.start();
       // Share the engine's live band object directly.

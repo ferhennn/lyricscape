@@ -220,4 +220,6 @@ export interface Settings {
   accentMode: AccentMode;
   customAccent: string;
   visualMode: VisualMode;
+  /** Sync scenes: how hard the visuals react to audio. 0.5–2, default 1. */
+  syncSensitivity: number;
 }
