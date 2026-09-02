@@ -103,19 +103,19 @@ export function Chrome({ visible }: { visible: boolean }) {
     teardown,
   } = useExperience();
   const pushHistory = useHistory((s) => s.push);
+  const recent = useHistory((s) => s.recent);
   const queue = useQueue((s) => s.items);
   const dequeue = useQueue((s) => s.remove);
 
-  // Prev / next walk the local track library (wraps around). A non-empty queue
-  // takes over "next".
-  const { prev, next } = useMemo(() => {
-    if (LOCAL_TRACKS.length === 0) return { prev: null, next: null };
+  // "Prev" is the last different track you actually played. "Next" is the head
+  // of the queue, else the next track in the local library (wraps around).
+  const prev = recent.find((t) => t.id !== song?.id) ?? null;
+  const next = useMemo(() => {
+    if (LOCAL_TRACKS.length === 0) return null;
     const i = LOCAL_TRACKS.findIndex((t) => t.id === song?.id);
     const at = (n: number) =>
       LOCAL_TRACKS[((n % LOCAL_TRACKS.length) + LOCAL_TRACKS.length) % LOCAL_TRACKS.length];
-    return i === -1
-      ? { prev: at(-1), next: at(0) }
-      : { prev: at(i - 1), next: at(i + 1) };
+    return i === -1 ? at(0) : at(i + 1);
   }, [song?.id]);
 
   const nextTarget = queue[0] ?? next;
