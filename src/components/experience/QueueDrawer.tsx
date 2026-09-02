@@ -17,6 +17,7 @@ export function QueueDrawer({
   const items = useQueue((s) => s.items);
   const move = useQueue((s) => s.move);
   const remove = useQueue((s) => s.remove);
+  const shuffle = useQueue((s) => s.shuffle);
   const clear = useQueue((s) => s.clear);
 
   return (
@@ -41,6 +42,15 @@ export function QueueDrawer({
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
               <span className="label">Queue · {items.length}</span>
               <div className="flex items-center gap-4">
+                {items.length > 1 && (
+                  <button
+                    onClick={shuffle}
+                    data-cursor="interactive"
+                    className="label text-muted hover:text-ink"
+                  >
+                    Shuffle
+                  </button>
+                )}
                 {items.length > 0 && (
                   <button
                     onClick={clear}

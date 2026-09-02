@@ -86,6 +86,7 @@ function QueuePanel() {
   const router = useRouter();
   const items = useQueue((s) => s.items);
   const remove = useQueue((s) => s.remove);
+  const shuffle = useQueue((s) => s.shuffle);
   const clear = useQueue((s) => s.clear);
   const push = useHistory((s) => s.push);
   if (items.length === 0) return null;
@@ -100,9 +101,20 @@ function QueuePanel() {
     <section className="mt-16">
       <div className="mb-6 flex items-baseline justify-between">
         <h2 className="label">Up next · {items.length}</h2>
-        <button className="label text-muted hover:text-ink" onClick={clear} data-cursor="interactive">
-          Clear queue
-        </button>
+        <div className="flex items-center gap-4">
+          {items.length > 1 && (
+            <button
+              className="label text-muted hover:text-ink"
+              onClick={shuffle}
+              data-cursor="interactive"
+            >
+              Shuffle
+            </button>
+          )}
+          <button className="label text-muted hover:text-ink" onClick={clear} data-cursor="interactive">
+            Clear queue
+          </button>
+        </div>
       </div>
       <ul className="flex flex-col divide-y divide-line border-y border-line">
         {items.map((song, i) => (

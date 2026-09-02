@@ -13,6 +13,8 @@ interface QueueStore {
   remove(id: string): void;
   /** Shift a song one slot earlier (-1) or later (+1) in the queue. */
   move(id: string, delta: -1 | 1): void;
+  /** Randomise the order of the queue. */
+  shuffle(): void;
   clear(): void;
   /** Pop the head off the queue and return it. */
   shift(): Song | undefined;
@@ -41,6 +43,15 @@ export const useQueue = create<QueueStore>()(
           if (i === -1 || j < 0 || j >= s.items.length) return s;
           const items = [...s.items];
           [items[i], items[j]] = [items[j], items[i]];
+          return { items };
+        }),
+      shuffle: () =>
+        set((s) => {
+          const items = [...s.items];
+          for (let i = items.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [items[i], items[j]] = [items[j], items[i]];
+          }
           return { items };
         }),
       clear: () => set({ items: [] }),
