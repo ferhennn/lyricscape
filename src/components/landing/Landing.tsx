@@ -116,6 +116,13 @@ export function Landing() {
           <Button variant="line" onClick={() => router.push(`/experience/${DEMO_SONG_ID}`)}>
             Try Demo
           </Button>
+          <Button
+            variant="line"
+            onClick={() => router.push("/sync")}
+            data-cursor="interactive"
+          >
+            Sync Visuals
+          </Button>
         </motion.div>
 
         <motion.div
