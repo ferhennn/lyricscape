@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearch } from "@/stores/search";
 import { useHistory } from "@/stores/history";
+import { useQueue } from "@/stores/queue";
 import { SongArtwork } from "./SongArtwork";
 import { LocalFileButton } from "./LocalFileButton";
 import { formatTime } from "@/lib/utils";
@@ -13,17 +14,30 @@ import type { Song } from "@/types";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-function ResultRow({ song, index, onPick }: { song: Song; index: number; onPick: () => void }) {
+function ResultRow({
+  song,
+  index,
+  onPick,
+  onQueue,
+  queued,
+}: {
+  song: Song;
+  index: number;
+  onPick: () => void;
+  onQueue: () => void;
+  queued: boolean;
+}) {
   return (
     <motion.li
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.4, ease }}
+      className="group flex items-center gap-3 border-b border-line/60"
     >
       <button
         onClick={onPick}
         data-cursor="interactive"
-        className="group flex w-full items-center gap-5 border-b border-line/60 py-3.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-5 py-3.5 text-left"
       >
         <div className="transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]">
           <SongArtwork src={song.artworkUrl} alt={song.albumName || song.title} seed={song.id} size={52} />
@@ -44,6 +58,15 @@ function ResultRow({ song, index, onPick }: { song: Song; index: number; onPick:
           <span className="meta text-muted">{formatTime(song.durationMs / 1000)}</span>
         )}
       </button>
+      <button
+        onClick={onQueue}
+        disabled={queued}
+        data-cursor="interactive"
+        className="label shrink-0 whitespace-nowrap px-2 py-1 text-muted transition-colors hover:text-ink disabled:opacity-50"
+        aria-label={queued ? "Already in queue" : `Add ${song.title} to queue`}
+      >
+        {queued ? "Queued" : "+ Queue"}
+      </button>
     </motion.li>
   );
 }
@@ -56,6 +79,9 @@ export function SearchOverlay() {
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const push = useHistory((s) => s.push);
   const recent = useHistory((s) => s.recent);
+  const queueItems = useQueue((s) => s.items);
+  const addToQueue = useQueue((s) => s.add);
+  const isQueued = (id: string) => queueItems.some((q) => q.id === id);
 
   useEffect(() => {
     if (open) {
@@ -151,7 +177,14 @@ export function SearchOverlay() {
                   )}
                   <ul className="flex flex-col">
                     {results.map((song, i) => (
-                      <ResultRow key={song.id} song={song} index={i} onPick={() => choose(song)} />
+                      <ResultRow
+                        key={song.id}
+                        song={song}
+                        index={i}
+                        onPick={() => choose(song)}
+                        onQueue={() => addToQueue(song)}
+                        queued={isQueued(song.id)}
+                      />
                     ))}
                   </ul>
                 </>
@@ -167,6 +200,8 @@ export function SearchOverlay() {
                             song={song}
                             index={i}
                             onPick={() => choose(song)}
+                            onQueue={() => addToQueue(song)}
+                            queued={isQueued(song.id)}
                           />
                         ))}
                       </ul>
@@ -182,6 +217,8 @@ export function SearchOverlay() {
                             song={song}
                             index={i}
                             onPick={() => choose(song)}
+                            onQueue={() => addToQueue(song)}
+                            queued={isQueued(song.id)}
                           />
                         ))}
                       </ul>

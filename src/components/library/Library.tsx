@@ -8,6 +8,7 @@ import { FilmGrain } from "@/components/ui/FilmGrain";
 import { SongArtwork } from "@/components/music/SongArtwork";
 import { Button } from "@/components/ui/Button";
 import { useHistory } from "@/stores/history";
+import { useQueue } from "@/stores/queue";
 import { useSearch } from "@/stores/search";
 import { useAppleMusic } from "@/hooks/useAppleMusic";
 import { appleMusic } from "@/lib/apple-music/service";
@@ -59,6 +60,65 @@ function Shelf({ title, songs }: { title: string; songs: Song[] }) {
           </motion.button>
         ))}
       </div>
+    </section>
+  );
+}
+
+function QueuePanel() {
+  const router = useRouter();
+  const items = useQueue((s) => s.items);
+  const remove = useQueue((s) => s.remove);
+  const clear = useQueue((s) => s.clear);
+  const push = useHistory((s) => s.push);
+  if (items.length === 0) return null;
+
+  const play = (song: Song) => {
+    remove(song.id);
+    push(song);
+    router.push(`/experience/${song.id}`);
+  };
+
+  return (
+    <section className="mt-16">
+      <div className="mb-6 flex items-baseline justify-between">
+        <h2 className="label">Up next · {items.length}</h2>
+        <button className="label text-muted hover:text-ink" onClick={clear} data-cursor="interactive">
+          Clear queue
+        </button>
+      </div>
+      <ul className="flex flex-col divide-y divide-line border-y border-line">
+        {items.map((song, i) => (
+          <li key={song.id} className="group flex items-center gap-4 py-3">
+            <span className="label w-5 shrink-0 text-muted">{i + 1}</span>
+            <button
+              onClick={() => play(song)}
+              data-cursor="interactive"
+              className="flex min-w-0 flex-1 items-center gap-4 text-left"
+            >
+              <SongArtwork
+                src={song.artworkUrl}
+                alt={song.albumName || song.title}
+                seed={song.id}
+                size={40}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium tracking-tight text-ink transition-transform duration-300 group-hover:translate-x-1">
+                  {song.title}
+                </span>
+                <span className="meta block truncate text-muted">{song.artistName}</span>
+              </span>
+            </button>
+            <button
+              onClick={() => remove(song.id)}
+              data-cursor="interactive"
+              className="label shrink-0 px-2 py-1 text-muted hover:text-ink"
+              aria-label={`Remove ${song.title} from queue`}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -148,6 +208,8 @@ export function Library() {
           </Link>
         </div>
       )}
+
+      <QueuePanel />
 
       <Shelf title="Your tracks" songs={LOCAL_TRACKS} />
       <Shelf title="Featured demo" songs={[DEMO_CONFIG.song]} />
