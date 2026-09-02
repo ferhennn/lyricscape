@@ -9,7 +9,7 @@ import { useHistory } from "@/stores/history";
 import { useQueue } from "@/stores/queue";
 import { Timeline } from "./Timeline";
 import { QueueDrawer } from "./QueueDrawer";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import { LOCAL_TRACKS } from "@/data/tracks";
 import type { Song, VisualMode } from "@/types";
 
@@ -93,6 +93,37 @@ function NavButton({
   );
 }
 
+function ResumeNotice({
+  seconds,
+  onStartOver,
+}: {
+  seconds: number;
+  onStartOver: () => void;
+}) {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(false), 7000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!visible) return null;
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      onClick={() => {
+        onStartOver();
+        setVisible(false);
+      }}
+      data-cursor="interactive"
+      className="label mt-2 inline-flex items-center gap-2 rounded-full border border-line bg-void-2/80 px-3 py-1 text-muted backdrop-blur hover:text-ink"
+    >
+      Resumed from {formatTime(seconds)}
+      <span className="text-ink">· start over</span>
+    </motion.button>
+  );
+}
+
 export function Chrome({ visible }: { visible: boolean }) {
   const router = useRouter();
   const {
@@ -103,6 +134,8 @@ export function Chrome({ visible }: { visible: boolean }) {
     seekBy,
     toggleMute,
     teardown,
+    seek,
+    resumedFrom,
   } = useExperience();
   const pushHistory = useHistory((s) => s.push);
   const recent = useHistory((s) => s.recent);
@@ -171,6 +204,15 @@ export function Chrome({ visible }: { visible: boolean }) {
             {song?.title}
           </p>
           <p className="meta truncate text-muted">{song?.artistName}</p>
+          <AnimatePresence>
+            {resumedFrom != null && (
+              <ResumeNotice
+                key={resumedFrom}
+                seconds={resumedFrom}
+                onStartOver={() => seek(0)}
+              />
+            )}
+          </AnimatePresence>
         </div>
         <div className="flex items-center gap-4">
           <button

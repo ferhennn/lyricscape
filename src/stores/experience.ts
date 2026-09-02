@@ -15,6 +15,7 @@ import { LocalAudioProvider } from "@/lib/audio/local";
 import { takeLocalFile } from "@/lib/audio/local-file";
 import { jamendoId, isJamendoId } from "@/lib/jamendo/id";
 import { useQueue } from "@/stores/queue";
+import { useHistory } from "@/stores/history";
 import { localTrack, localTrackExtras } from "@/data/tracks";
 import { appleMusic } from "@/lib/apple-music/service";
 import { parseLrc, buildLyrics } from "@/lib/lyrics/lrc";
@@ -60,6 +61,8 @@ interface ExperienceState {
 
   snapshot: PlaybackSnapshot;
   controlsVisible: boolean;
+  /** Seconds we auto-resumed to on load, until the user seeks or dismisses. */
+  resumedFrom: number | null;
 
   // actions
   prepare(songId: string, opts?: { localFile?: File }): Promise<void>;
@@ -95,6 +98,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   clock: { time: 0, duration: 0, playing: false },
   snapshot: { ...idleSnapshot },
   controlsVisible: true,
+  resumedFrom: null,
 
   async prepare(songId, opts) {
     get().teardown();
@@ -208,15 +212,32 @@ export const useExperience = create<ExperienceState>((set, get) => ({
       const timeline = new Timeline(sceneMeta, lyrics.lines, duration);
       const lyricsUnavailable = !lyrics.synced && lyrics.lines.length === 0;
 
+      // Auto-resume: pick up where this track was last left off, unless we're
+      // near the start or the end.
+      const savedProgress = useHistory.getState().progress[song.id] ?? 0;
+      const resumedFrom =
+        savedProgress > 20 && savedProgress < duration - 20 ? savedProgress : null;
+      if (resumedFrom !== null) provider.seek(resumedFrom);
+
       // Stable clock object — mutated in place each frame, never replaced.
-      const clock: PlaybackClock = { time: 0, duration, playing: false };
+      const clock: PlaybackClock = { time: resumedFrom ?? 0, duration, playing: false };
       set({ clock });
 
       // Subscribe to playback snapshots (throttled for UI) + keep the clock fresh.
+      let progressSaved = 0;
       unsub = provider.subscribe((snap) => {
         clock.time = snap.currentTime;
         clock.duration = snap.duration || duration;
         clock.playing = snap.status === "playing";
+
+        if (snap.status === "ended") useHistory.getState().clearProgress(song.id);
+        else if (snap.status === "playing") {
+          const t = performance.now();
+          if (t - progressSaved > 5000) {
+            progressSaved = t;
+            useHistory.getState().setProgress(song.id, snap.currentTime);
+          }
+        }
 
         const now = performance.now();
         const important =
@@ -244,6 +265,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
         engine,
         timeline,
         provider,
+        resumedFrom,
         status: "ready",
       });
     } catch (err) {
@@ -285,6 +307,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
     const clamped = Math.max(0, Math.min(seconds, clock.duration || seconds));
     provider.seek(clamped);
     clock.time = clamped;
+    if (get().resumedFrom !== null) set({ resumedFrom: null });
   },
 
   seekBy(delta) {
@@ -317,9 +340,15 @@ export const useExperience = create<ExperienceState>((set, get) => ({
   },
 
   teardown() {
+    // Remember where we stopped, so the next visit can resume.
+    const { provider, song, status } = get();
+    if (provider && song && status !== "ended") {
+      const t = provider.getTime();
+      if (t > 20) useHistory.getState().setProgress(song.id, t);
+    }
     unsub?.();
     unsub = null;
-    get().provider?.destroy();
+    provider?.destroy();
     set({
       status: "idle",
       error: null,
@@ -334,6 +363,7 @@ export const useExperience = create<ExperienceState>((set, get) => ({
       snapshot: { ...idleSnapshot },
       clock: { time: 0, duration: 0, playing: false },
       controlsVisible: true,
+      resumedFrom: null,
     });
   },
 }));
