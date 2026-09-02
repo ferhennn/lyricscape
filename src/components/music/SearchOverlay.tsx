@@ -19,12 +19,14 @@ function ResultRow({
   index,
   onPick,
   onQueue,
+  onPlayNext,
   queued,
 }: {
   song: Song;
   index: number;
   onPick: () => void;
   onQueue: () => void;
+  onPlayNext: () => void;
   queued: boolean;
 }) {
   return (
@@ -59,6 +61,14 @@ function ResultRow({
         )}
       </button>
       <button
+        onClick={onPlayNext}
+        data-cursor="interactive"
+        className="label shrink-0 whitespace-nowrap px-2 py-1 text-muted opacity-0 transition hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
+        aria-label={`Play ${song.title} next`}
+      >
+        Next
+      </button>
+      <button
         onClick={onQueue}
         disabled={queued}
         data-cursor="interactive"
@@ -81,6 +91,7 @@ export function SearchOverlay() {
   const recent = useHistory((s) => s.recent);
   const queueItems = useQueue((s) => s.items);
   const addToQueue = useQueue((s) => s.add);
+  const playNext = useQueue((s) => s.playNext);
   const isQueued = (id: string) => queueItems.some((q) => q.id === id);
 
   useEffect(() => {
@@ -183,6 +194,7 @@ export function SearchOverlay() {
                         index={i}
                         onPick={() => choose(song)}
                         onQueue={() => addToQueue(song)}
+                        onPlayNext={() => playNext(song)}
                         queued={isQueued(song.id)}
                       />
                     ))}
@@ -201,6 +213,7 @@ export function SearchOverlay() {
                             index={i}
                             onPick={() => choose(song)}
                             onQueue={() => addToQueue(song)}
+                            onPlayNext={() => playNext(song)}
                             queued={isQueued(song.id)}
                           />
                         ))}
@@ -218,6 +231,7 @@ export function SearchOverlay() {
                             index={i}
                             onPick={() => choose(song)}
                             onQueue={() => addToQueue(song)}
+                            onPlayNext={() => playNext(song)}
                             queued={isQueued(song.id)}
                           />
                         ))}
