@@ -14,6 +14,7 @@ import { useSettings } from "@/stores/settings";
 import { LocalAudioProvider } from "@/lib/audio/local";
 import { takeLocalFile } from "@/lib/audio/local-file";
 import { jamendoId, isJamendoId } from "@/lib/jamendo/id";
+import { useQueue } from "@/stores/queue";
 import { localTrack, localTrackExtras } from "@/data/tracks";
 import { appleMusic } from "@/lib/apple-music/service";
 import { parseLrc, buildLyrics } from "@/lib/lyrics/lrc";
@@ -97,6 +98,8 @@ export const useExperience = create<ExperienceState>((set, get) => ({
 
   async prepare(songId, opts) {
     get().teardown();
+    // A queued track that's now starting leaves the queue.
+    useQueue.getState().remove(songId);
     set({
       status: "preparing",
       error: null,
