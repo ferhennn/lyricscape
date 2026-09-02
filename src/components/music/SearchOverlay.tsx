@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearch } from "@/stores/search";
@@ -21,6 +21,7 @@ function ResultRow({
   onQueue,
   onPlayNext,
   queued,
+  active = false,
 }: {
   song: Song;
   index: number;
@@ -28,13 +29,22 @@ function ResultRow({
   onQueue: () => void;
   onPlayNext: () => void;
   queued: boolean;
+  active?: boolean;
 }) {
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   return (
     <motion.li
+      ref={ref}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.4, ease }}
-      className="group flex items-center gap-3 border-b border-line/60"
+      className={
+        "group flex items-center gap-3 border-b border-line/60" +
+        (active ? " bg-ink/[0.06]" : "")
+      }
     >
       <button
         onClick={onPick}
@@ -93,6 +103,8 @@ export function SearchOverlay() {
   const addToQueue = useQueue((s) => s.add);
   const playNext = useQueue((s) => s.playNext);
   const isQueued = (id: string) => queueItems.some((q) => q.id === id);
+  const [active, setActive] = useState(0);
+  const activeIdx = Math.min(active, Math.max(0, results.length - 1));
 
   useEffect(() => {
     if (open) {
@@ -169,9 +181,20 @@ export function SearchOverlay() {
               <input
                 ref={inputRef}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && results[0]) choose(results[0]);
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActive((i) => Math.min(i + 1, results.length - 1));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActive((i) => Math.max(i - 1, 0));
+                  } else if (e.key === "Enter" && results[activeIdx]) {
+                    choose(results[activeIdx]);
+                  }
                 }}
                 placeholder="What do you want to hear?"
                 className="w-full bg-transparent text-display text-3xl font-medium tracking-tight text-ink placeholder:text-muted/50 focus:outline-none sm:text-4xl"
@@ -192,6 +215,7 @@ export function SearchOverlay() {
                         key={song.id}
                         song={song}
                         index={i}
+                        active={i === activeIdx}
                         onPick={() => choose(song)}
                         onQueue={() => addToQueue(song)}
                         onPlayNext={() => playNext(song)}
