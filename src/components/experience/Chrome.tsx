@@ -30,8 +30,12 @@ type IconName =
   | "sound"
   | "exit"
   | "down"
+  | "heart"
+  | "heartFull"
   | "expand"
   | "compress";
+
+const HEART = "M12 21C6.5 16.5 3 13.2 3 9.2A4.7 4.7 0 0 1 12 6.5 4.7 4.7 0 0 1 21 9.2c0 4-3.5 7.3-9 11.8z";
 
 function Icon({ name }: { name: IconName }) {
   const p: Record<IconName, string> = {
@@ -41,12 +45,19 @@ function Icon({ name }: { name: IconName }) {
     fwd: "M13 12 4 6v12zM18 6v12h2V6z",
     exit: "M6 6l12 12M18 6 6 18",
     down: "M6 9l6 6 6-6",
+    heart: HEART,
+    heartFull: HEART,
     mute: "M4 9v6h4l5 4V5L8 9zM16 9l4 6M20 9l-4 6",
     sound: "M4 9v6h4l5 4V5L8 9zM16 8a5 5 0 0 1 0 8",
     expand: "M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5",
     compress: "M9 3v5H4M20 8h-5V3M15 21v-5h5M4 16h5v5",
   };
-  const filled = name === "play" || name === "pause" || name === "back" || name === "fwd";
+  const filled =
+    name === "play" ||
+    name === "pause" ||
+    name === "back" ||
+    name === "fwd" ||
+    name === "heartFull";
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d={p[name]} fill={filled ? "currentColor" : "none"} stroke={filled ? "none" : "currentColor"} />
@@ -139,6 +150,8 @@ export function Chrome({ visible }: { visible: boolean }) {
   } = useExperience();
   const pushHistory = useHistory((s) => s.push);
   const recent = useHistory((s) => s.recent);
+  const favorites = useHistory((s) => s.favorites);
+  const toggleFavorite = useHistory((s) => s.toggleFavorite);
   const queue = useQueue((s) => s.items);
   const dequeue = useQueue((s) => s.remove);
 
@@ -190,6 +203,7 @@ export function Chrome({ visible }: { visible: boolean }) {
   };
 
   const playing = status === "playing";
+  const favorited = !!song && favorites.includes(song.id);
 
   return (
     <>
@@ -267,6 +281,18 @@ export function Chrome({ visible }: { visible: boolean }) {
           </div>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => song && toggleFavorite(song.id)}
+              data-cursor="interactive"
+              aria-label={favorited ? "Remove from favourites" : "Add to favourites"}
+              className={cn(
+                "p-2 hover:text-ink",
+                favorited ? "text-[var(--accent)]" : "text-ink/70",
+              )}
+            >
+              <Icon name={favorited ? "heartFull" : "heart"} />
+            </button>
+
             <button
               onClick={() => setQueueOpen(true)}
               data-cursor="interactive"

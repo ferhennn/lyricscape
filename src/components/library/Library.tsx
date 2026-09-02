@@ -155,10 +155,33 @@ function QueuePanel() {
 
 export function Library() {
   const recent = useHistory((s) => s.recent);
+  const favorites = useHistory((s) => s.favorites);
   const openSearch = useSearch((s) => s.setOpen);
   const { status } = useAppleMusic();
   const [librarySongs, setLibrarySongs] = useState<Song[]>([]);
   const [trending, setTrending] = useState<Song[]>([]);
+
+  // Favourites are stored as ids; resolve them against every song we know about.
+  const favoriteSongs = (() => {
+    const pool = [
+      ...recent,
+      ...LOCAL_TRACKS,
+      DEMO_CONFIG.song,
+      ...librarySongs,
+      ...trending,
+    ];
+    const seen = new Set<string>();
+    const out: Song[] = [];
+    for (const id of favorites) {
+      if (seen.has(id)) continue;
+      const found = pool.find((s) => s.id === id);
+      if (found) {
+        seen.add(id);
+        out.push(found);
+      }
+    }
+    return out;
+  })();
 
   useEffect(() => {
     let cancelled = false;
@@ -241,6 +264,7 @@ export function Library() {
 
       <QueuePanel />
 
+      <Shelf title="Favourites" songs={favoriteSongs} />
       <Shelf title="Your tracks" songs={LOCAL_TRACKS} />
       <Shelf title="Featured demo" songs={[DEMO_CONFIG.song]} />
       <Shelf title="Recently played" songs={recent} />
