@@ -72,12 +72,16 @@ export function ExperienceRoot({ songId }: { songId: string }) {
     if (useExperience.getState().song?.id !== songId) void prepare(songId);
   }, [songId, prepare]);
 
-  // Honour ?t= once the track is loaded — an explicit link beats a saved resume.
+  // Honour ?t= once playback is actually running (seeking a not-yet-buffered
+  // <audio> doesn't stick). An explicit link beats a saved resume.
+  const seekedToParam = useRef(false);
   useEffect(() => {
-    if (startAt > 0 && (status === "ready" || status === "playing")) seek(startAt);
-    // Only meant to fire on the first transition into a playable state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status === "ready" || status === "playing"]);
+    if (seekedToParam.current || startAt <= 0) return;
+    if (status === "playing") {
+      seekedToParam.current = true;
+      seek(startAt);
+    }
+  }, [status, startAt, seek]);
 
   // Cinematic intro, then autoplay.
   useEffect(() => {
