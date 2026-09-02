@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useExperience } from "@/stores/experience";
 import { useSearch } from "@/stores/search";
 import { useHistory } from "@/stores/history";
+import { useSettings } from "@/stores/settings";
+import { useQueue } from "@/stores/queue";
 import { Button } from "@/components/ui/Button";
 import { SongArtwork } from "@/components/music/SongArtwork";
 import { LOCAL_TRACKS } from "@/data/tracks";
@@ -18,19 +20,50 @@ export function EndCard() {
   const teardown = useExperience((s) => s.teardown);
   const openSearch = useSearch((s) => s.setOpen);
   const push = useHistory((s) => s.push);
+  const autoAdvance = useSettings((s) => s.autoplay);
+  const queued = useQueue((s) => s.items);
+  const dequeue = useQueue((s) => s.remove);
 
-  const upNext = useMemo<Song[]>(() => {
+  const fallback = useMemo<Song[]>(() => {
     const pool = LOCAL_TRACKS.filter((t) => t.id !== song?.id);
     const sameArtist = pool.filter((t) => t.artistName === song?.artistName);
     const rest = pool.filter((t) => t.artistName !== song?.artistName);
     return [...sameArtist, ...rest].slice(0, 3);
   }, [song?.id, song?.artistName]);
 
+  // The queue wins; otherwise suggest tracks from the local library.
+  const fromQueue = queued.length > 0;
+  const upNext = fromQueue ? queued.slice(0, 5) : fallback;
+
   function playNext(next: Song) {
+    dequeue(next.id);
     push(next);
     teardown();
     router.push(`/experience/${next.id}`);
   }
+
+  // Auto-advance: when autoplay is on and there's a track lined up, count down
+  // and roll into it. Any of the buttons below cancels it.
+  const [countdown, setCountdown] = useState<number | null>(() =>
+    autoAdvance && upNext.length > 0 ? 8 : null,
+  );
+
+  useEffect(() => {
+    if (countdown === null) return;
+    const iv = setInterval(() => {
+      setCountdown((c) => (c !== null && c > 0 ? c - 1 : c));
+    }, 1000);
+    return () => clearInterval(iv);
+    // Runs once — EndCard is remounted fresh each time a song ends.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (countdown === 0 && upNext[0]) playNext(upNext[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown]);
+
+  const cancelAuto = () => setCountdown(null);
 
   return (
     <motion.div
@@ -63,12 +96,19 @@ export function EndCard() {
         transition={{ delay: 1.4, duration: 0.8 }}
         className="mt-12 flex flex-wrap items-center justify-center gap-4"
       >
-        <Button variant="primary" onClick={restart}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            cancelAuto();
+            restart();
+          }}
+        >
           Play again
         </Button>
         <Button
           variant="line"
           onClick={() => {
+            cancelAuto();
             teardown();
             router.push("/library");
             openSearch(true);
@@ -79,6 +119,7 @@ export function EndCard() {
         <Button
           variant="ghost"
           onClick={() => {
+            cancelAuto();
             teardown();
             router.push("/");
           }}
@@ -94,12 +135,29 @@ export function EndCard() {
           transition={{ delay: 1.8, duration: 0.8 }}
           className="mt-16 w-full max-w-lg"
         >
-          <p className="label mb-4">Play next</p>
+          <div className="mb-4 flex items-baseline justify-between">
+            <p className="label">{fromQueue ? "In your queue" : "Play next"}</p>
+            {countdown !== null && (
+              <span className="label text-muted">
+                auto in {countdown}s ·{" "}
+                <button
+                  onClick={cancelAuto}
+                  data-cursor="interactive"
+                  className="text-ink hover:underline"
+                >
+                  cancel
+                </button>
+              </span>
+            )}
+          </div>
           <ul className="flex flex-col divide-y divide-line border-y border-line">
             {upNext.map((next) => (
               <li key={next.id}>
                 <button
-                  onClick={() => playNext(next)}
+                  onClick={() => {
+                    cancelAuto();
+                    playNext(next);
+                  }}
                   data-cursor="interactive"
                   className="group flex w-full items-center gap-4 py-3 text-left"
                 >

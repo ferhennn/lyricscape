@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useExperience } from "@/stores/experience";
 import { useSettings } from "@/stores/settings";
 import { useHistory } from "@/stores/history";
+import { useQueue } from "@/stores/queue";
 import { Timeline } from "./Timeline";
 import { cn } from "@/lib/utils";
 import { LOCAL_TRACKS } from "@/data/tracks";
@@ -101,8 +102,11 @@ export function Chrome({ visible }: { visible: boolean }) {
     teardown,
   } = useExperience();
   const pushHistory = useHistory((s) => s.push);
+  const queue = useQueue((s) => s.items);
+  const dequeue = useQueue((s) => s.remove);
 
-  // Prev / next walk the local track library (wraps around).
+  // Prev / next walk the local track library (wraps around). A non-empty queue
+  // takes over "next".
   const { prev, next } = useMemo(() => {
     if (LOCAL_TRACKS.length === 0) return { prev: null, next: null };
     const i = LOCAL_TRACKS.findIndex((t) => t.id === song?.id);
@@ -113,8 +117,11 @@ export function Chrome({ visible }: { visible: boolean }) {
       : { prev: at(i - 1), next: at(i + 1) };
   }, [song?.id]);
 
+  const nextTarget = queue[0] ?? next;
+
   const goTo = (t: Song | null) => {
     if (!t) return;
+    dequeue(t.id);
     pushHistory(t);
     teardown();
     router.push(`/experience/${t.id}`);
@@ -189,7 +196,7 @@ export function Chrome({ visible }: { visible: boolean }) {
             </button>
             <NavButton
               icon="fwd"
-              target={next}
+              target={nextTarget}
               onSeek={() => seekBy(10)}
               label="Next track"
               onGo={goTo}
