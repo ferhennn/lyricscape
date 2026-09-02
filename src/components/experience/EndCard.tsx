@@ -20,19 +20,33 @@ export function EndCard() {
   const teardown = useExperience((s) => s.teardown);
   const openSearch = useSearch((s) => s.setOpen);
   const push = useHistory((s) => s.push);
+  const recent = useHistory((s) => s.recent);
   const autoAdvance = useSettings((s) => s.autoplay);
   const queued = useQueue((s) => s.items);
   const dequeue = useQueue((s) => s.remove);
   const enqueue = useQueue((s) => s.add);
 
   const fallback = useMemo<Song[]>(() => {
-    const pool = LOCAL_TRACKS.filter((t) => t.id !== song?.id);
-    const sameArtist = pool.filter((t) => t.artistName === song?.artistName);
-    const rest = pool.filter((t) => t.artistName !== song?.artistName);
-    return [...sameArtist, ...rest].slice(0, 3);
-  }, [song?.id, song?.artistName]);
+    const exclude = new Set([song?.id]);
+    const local = LOCAL_TRACKS.filter((t) => !exclude.has(t.id));
+    const localByArtist = [
+      ...local.filter((t) => t.artistName === song?.artistName),
+      ...local.filter((t) => t.artistName !== song?.artistName),
+    ];
+    // For a local track, stay in the library. For anything streamed, your
+    // recent plays are a better "up next" than unrelated local files.
+    if (song?.provider === "local") return localByArtist.slice(0, 3);
+    const seen = new Set(exclude);
+    const merged: Song[] = [];
+    for (const s of [...recent, ...localByArtist]) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      merged.push(s);
+    }
+    return merged.slice(0, 3);
+  }, [song?.id, song?.artistName, song?.provider, recent]);
 
-  // The queue wins; otherwise suggest tracks from the local library.
+  // The queue wins; otherwise suggest tracks from history / the local library.
   const fromQueue = queued.length > 0;
   const upNext = fromQueue ? queued.slice(0, 5) : fallback;
 
