@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { SearchOverlay } from "@/components/music/SearchOverlay";
+import { MiniPlayer } from "@/components/player/MiniPlayer";
 import { useSearch } from "@/stores/search";
 import { useSettings } from "@/stores/settings";
 
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CustomCursor />
       {children}
       <SearchOverlay />
+      <MiniPlayer />
     </>
   );
 }
